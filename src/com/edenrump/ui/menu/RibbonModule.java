@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui;
+package com.edenrump.ui.menu;
 
 import javafx.scene.Node;
 import javafx.scene.control.Control;
@@ -18,7 +18,7 @@ import javafx.scene.layout.StackPane;
 
 /**
  * A class representing a module within the ribbon band of a program.
- *
+ * <p>
  * It typically contains Controls
  */
 public class RibbonModule extends BorderPane {
@@ -60,6 +60,7 @@ public class RibbonModule extends BorderPane {
 
     /**
      * Method to get the name of the ribbon module
+     *
      * @return the name of the module
      */
     public String getName() {
@@ -68,6 +69,7 @@ public class RibbonModule extends BorderPane {
 
     /**
      * Method to set the name of the ribbon module
+     *
      * @param name the name of the module
      */
     public void setName(String name) {
@@ -76,6 +78,7 @@ public class RibbonModule extends BorderPane {
 
     /**
      * Method to add a Control to the module
+     *
      * @param control the Control to be added
      */
     public void add(Control control) {
@@ -85,6 +88,7 @@ public class RibbonModule extends BorderPane {
 
     /**
      * Method to remove a Control from this module
+     *
      * @param control the Control to be removed
      */
     public void remove(Control control) {
@@ -95,8 +99,8 @@ public class RibbonModule extends BorderPane {
      * Method to disable all controls in the module
      */
     public void disableControls() {
-        for(Node node : controlHolder.getChildren()){
-            if(node instanceof Control){
+        for (Node node : controlHolder.getChildren()) {
+            if (node instanceof Control) {
                 Control c = (Control) node;
                 c.setDisable(true);
             }
@@ -107,8 +111,8 @@ public class RibbonModule extends BorderPane {
      * Method to enable all controls in the module
      */
     public void enableControls() {
-        for(Node node : controlHolder.getChildren()){
-            if(node instanceof Control){
+        for (Node node : controlHolder.getChildren()) {
+            if (node instanceof Control) {
                 Control c = (Control) node;
                 c.setDisable(false);
             }

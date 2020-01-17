@@ -11,4 +11,5 @@ package com.edenrump.config;
 
 public class Defaults {
     public static final String APPLICATION_NAME = "Threads";
+    public static final String LOAD_MODULE_NAME = "File";
 }

@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui;
+package com.edenrump.ui.menu;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.Control;
@@ -106,7 +106,7 @@ public class Ribbon extends VBox {
         //rebuild children from Map
         for (String string : moduleMap.keySet()) {
             RibbonModule r = moduleMap.get(string);
-            if(positionMap.get(r)){
+            if (positionMap.get(r)) {
                 moduleEndHolder.getChildren().add(r);
             } else {
                 moduleHolder.getChildren().add(r);

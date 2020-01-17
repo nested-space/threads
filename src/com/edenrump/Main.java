@@ -23,13 +23,13 @@ import java.io.IOException;
 public class Main extends Application {
 
     @Override
-    public void start(Stage primaryStage) throws Exception{
+    public void start(Stage primaryStage) throws Exception {
         FXMLLoader fxmlLoader;
         Parent root;
-        primaryStage.setTitle(Defaults.APPLICATION_NAME + " | File Converter");
-        primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("img/wool.png")));
+        primaryStage.setTitle(Defaults.APPLICATION_NAME + " | Visualiser");
+        primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
         try {
-            fxmlLoader = new FXMLLoader(getClass().getResource("fxml/MainWindow.fxml"));
+            fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/MainWindow.fxml"));
             root = fxmlLoader.load();
             MainWindowController mainWindowController = fxmlLoader.getController();
             primaryStage.setScene(new Scene(root));
@@ -39,7 +39,6 @@ public class Main extends Application {
             Platform.exit();
         }
     }
-
 
     public static void main(String[] args) {
         launch(args);
