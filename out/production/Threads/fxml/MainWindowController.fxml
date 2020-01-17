@@ -1,0 +1,17 @@
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.GridPane?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<!--
+  ~ /*******************************************************************************
+  ~  * Copyright (c) 05/12/2019, 09:12.2019. Edward Eden-Rump is licensed under a Creative Commons Attribution 4.0 International License.
+  ~  *
+  ~  * Based on a work at https://github.com/nested-space/
+  ~  To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/.
+  ~  ******************************************************************************/
+  -->
+
+<GridPane fx:controller="com.edenrump.MainWindowController"
+          xmlns:fx="http://javafx.com/fxml" alignment="center" hgap="10" vgap="10">
+</GridPane>
