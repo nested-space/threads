@@ -13,16 +13,27 @@ import com.edenrump.config.Defaults;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.display.HolderRectangle;
 import com.edenrump.ui.menu.Ribbon;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.PauseTransition;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.fxml.Initializable;
+import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
+import org.w3c.dom.css.Rect;
 
 import java.io.File;
 import java.net.URL;
@@ -34,8 +45,25 @@ public class MainWindowController implements Initializable {
      * Top layer of application, base pane
      */
     public BorderPane borderBase;
-    public HBox displayContainer;
 
+    /**
+     * Container in the background of the display that deals with position of nodes
+     * <p>
+     * This is used in prototyping because it seems easier to have JavaFX deal with the positions of the nodes
+     * and then (if positions change) to create animations on the nodes in the anchorpane displayOverlay which
+     * move nodes from their original position to their new one. This might be less efficient, but it means I don't
+     * have to code my own Region types to hold the nodes.
+     */
+    public HBox preparationContainer;
+
+    /**
+     * Anchorpane at the front of the display in which real nodes are placed
+     */
+    public AnchorPane displayOverlay;
+
+    /**
+     * The vertex data currently associated with the display
+     */
     private List<VertexData> nodeInfoInMemory = new ArrayList<>();
 
     /**
@@ -48,12 +76,15 @@ public class MainWindowController implements Initializable {
      */
     private Map<Integer, Node> displayDepthMap = new HashMap<>();
 
+    private Map<Node, Node> preparationDisplayMap = new HashMap<>();
+
     /**
      * Initial actions to load the ribbon of the display and start the user interaction process
      */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         loadRibbon(borderBase);
+        createNew();
     }
 
     /**
@@ -86,15 +117,57 @@ public class MainWindowController implements Initializable {
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, button);
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, newFileButton);
 
+        mRibbon.addModule("Test Buttons", true);
+
+        Button testAlignTop = new Button("Align Top");
+        testAlignTop.setOnAction(actionEvent -> {
+            for (Node container : preparationContainer.getChildren()) {
+                if (container instanceof VBox) {
+                    VBox v = (VBox) container;
+                    v.setAlignment(Pos.TOP_CENTER);
+                }
+            }
+        });
+
+        Button testAlignCenter = new Button("Align Center");
+        testAlignCenter.setOnAction(actionEvent -> {
+            for (Node container : preparationContainer.getChildren()) {
+                if (container instanceof VBox) {
+                    VBox v = (VBox) container;
+                    v.setAlignment(Pos.CENTER);
+                }
+            }
+        });
+
+        Button testAlignBottom = new Button("Align Bottom");
+        testAlignBottom.setOnAction(actionEvent -> {
+            for (Node container : preparationContainer.getChildren()) {
+                if (container instanceof VBox) {
+                    VBox v = (VBox) container;
+                    v.setAlignment(Pos.BOTTOM_CENTER);
+                }
+            }
+        });
+
+        Button resolve = new Button("Resolve Display");
+        resolve.setOnAction(actionEvent -> {
+            resolvePrepAndDisplay();
+        });
+
+        mRibbon.addControlToModule("Test Buttons", testAlignTop);
+        mRibbon.addControlToModule("Test Buttons", testAlignCenter);
+        mRibbon.addControlToModule("Test Buttons", testAlignBottom);
+        mRibbon.addControlToModule("Test Buttons", resolve);
+
         borderPane.setTop(mRibbon);
     }
 
     /**
      * Determine whether a map is currently loaded. If yes, prompt user to close. If not, load new file.
      */
-    private void newButtonPressed(){
-        if(programState == ProgramState.Loaded) {
-            if(promptUserClose()) createNew();
+    private void newButtonPressed() {
+        if (programState == ProgramState.Loaded) {
+            if (promptUserClose()) createNew();
         } else {
             createNew();
         }
@@ -102,6 +175,7 @@ public class MainWindowController implements Initializable {
 
     /**
      * Prompt user whether to close the current file
+     *
      * @return the users decision
      */
     private boolean promptUserClose() {
@@ -125,7 +199,7 @@ public class MainWindowController implements Initializable {
     /**
      * Create a new thread map and display the start node
      */
-    private void createNew(){
+    private void createNew() {
         //Close everything down
         clearNodeInformation();
         clearNodeReals();
@@ -138,37 +212,104 @@ public class MainWindowController implements Initializable {
         startingNode.addUpstream(upstreamNode.getId());
         nodeInfoInMemory.addAll(Arrays.asList(startingNode, upstreamNode));
         nodeDepthMap = createNodeMapping(nodeInfoInMemory);
-        displayDepthMap = createNodeDisplay();
+        PreparationDisplayMaps pdm = createNodeDisplay(nodeDepthMap);
+        displayDepthMap = pdm.depthToPrep;
+        preparationDisplayMap = pdm.prepToDisplay;
 
-        for(int i=0; i<displayDepthMap.keySet().size(); i++){
-            displayContainer.getChildren().addAll(displayDepthMap.get(i));
+        //Load the preparation container with nodes
+        for (int i = 0; i < displayDepthMap.keySet().size(); i++) {
+            preparationContainer.getChildren().addAll(displayDepthMap.get(i));
         }
+
+        //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
+        Platform.runLater(() -> {
+            PauseTransition t = new PauseTransition(Duration.millis(200));
+            t.setOnFinished(actionEvent -> {
+                displayOverlay.getChildren().addAll(preparationDisplayMap.values());
+                double x = displayOverlay.getLayoutBounds().getWidth() / 2;
+                double y = displayOverlay.getLayoutBounds().getHeight() / 2;
+                for(Node n : preparationDisplayMap.values()){
+                    n.setLayoutX(x);
+                    n.setLayoutY(y);
+                }
+                resolvePrepAndDisplay();
+            });
+            t.playFromStart();
+        });
+    }
+
+    private void resolvePrepAndDisplay() {
+        Timeline all = new Timeline(30);
+        for (Node prepNode : preparationDisplayMap.keySet()) {
+            Node displayNode = preparationDisplayMap.get(prepNode);
+            double prepX = prepNode.localToScene(prepNode.getLayoutBounds()).getMinX();
+            double prepY = prepNode.localToScene(prepNode.getLayoutBounds()).getMinY();
+            all.getKeyFrames().addAll(Arrays.asList((
+                            new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX()))),
+                    new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
+                    new KeyFrame(Duration.millis(350), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
+                    new KeyFrame(Duration.millis(350), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode)))));
+        }
+        all.playFromStart();
+    }
+
+    /**
+     * Return the Bounds of the node in the scene. Utility method to help concise code.
+     *
+     * @param node the node in the scene
+     * @return the bounds in scene
+     */
+    private Double ltsX(Node node) {
+        return node.localToScene(node.getBoundsInLocal()).getMinX() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinX();
+    }
+
+    /**
+     * Return relevant bounds in the current container that are the same in-scene bounds as a node in a different container
+     * Utility method to help concise code.
+     *
+     * @return the bounds in the current container that replicate in-scene the bounds of the prep node
+     */
+    private Double ltsY(Node node) {
+        System.out.println(node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY());
+        return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
     }
 
     /**
      * For each level of depth in the map provided, create a container node. For each vertex within the nested map,
      * create a display node and add it to the container. Return a map of depths to containers
+     *
      * @return a map of depth level to container nodes
      */
-    private Map<Integer, Node> createNodeDisplay() {
-        Map<Integer, Node> depthMap = new HashMap<>();
-        for(int depth=0; depth<nodeDepthMap.keySet().size(); depth++){
+    private PreparationDisplayMaps createNodeDisplay(Map<Integer, List<VertexData>> nodeDepthMap) {
+        PreparationDisplayMaps pdm = new PreparationDisplayMaps();
+
+        for (int depth = 0; depth < nodeDepthMap.keySet().size(); depth++) {
             VBox container = getStyledContainer();
-            for(VertexData data : nodeDepthMap.get(depth)){
-                HolderRectangle node = new HolderRectangle();
-                node.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
-                container.getChildren().add(node);
+            for (VertexData data : nodeDepthMap.get(depth)) {
+
+                //Create node for preparation area of display
+                HolderRectangle prepNode = new HolderRectangle();
+                prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+                container.getChildren().add(prepNode);
+
+                //Create node for display overlay
+                HolderRectangle displayNode = new HolderRectangle();
+                displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+                displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
+                displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
+                pdm.prepToDisplay.put(prepNode, displayNode);
             }
-            depthMap.put(depth, container);
+            pdm.depthToPrep.put(depth, container);
         }
-        return depthMap;
+        return pdm;
     }
 
     /**
      * Clear the current display and return it to an unloaded state
      */
     private void clearNodeReals() {
-        displayContainer.getChildren().clear();
+        preparationContainer.getChildren().clear();
+        displayOverlay.getChildren().clear();
     }
 
     /**
@@ -181,6 +322,7 @@ public class MainWindowController implements Initializable {
 
     /**
      * Create node positions from the node map currently in memory
+     *
      * @return a positional map of containers and nodes
      */
     private Map<Integer, List<VertexData>> createNodeMapping(List<VertexData> nodeInfo) {
@@ -191,13 +333,12 @@ public class MainWindowController implements Initializable {
         nodeMap.put(depth, findDownsteamLeaves(nodeInfo));
         liveNodes.removeAll(nodeMap.get(depth++));
 
-        while (liveNodes.size() > 0){
+        while (liveNodes.size() > 0) {
             List<VertexData> nodesAtCurrentDepth = new ArrayList<>();
-            List<VertexData> nodesAtDepthAbove = new ArrayList<>(nodeMap.get(depth-1));
-            for(VertexData ed : liveNodes){
-                if(linksToDownstreamNode(ed, nodesAtDepthAbove)) {
+            List<VertexData> nodesAtDepthAbove = new ArrayList<>(nodeMap.get(depth - 1));
+            for (VertexData ed : liveNodes) {
+                if (linksToDownstreamNode(ed, nodesAtDepthAbove)) {
                     nodesAtCurrentDepth.add(ed);
-                    System.out.println("Nodes located! ");
                 }
             }
             liveNodes.removeAll(nodesAtCurrentDepth);
@@ -208,14 +349,15 @@ public class MainWindowController implements Initializable {
 
     /**
      * Return whether the edge data (ed) has a direct upstream link to the node list provided.
-     * @param ed the edge data
+     *
+     * @param ed                the edge data
      * @param nodesAtDepthAbove the nodes against which to test upstream linkage
      * @return whether the edge data is linked directly to the node list. Upstream only.
      */
     private boolean linksToDownstreamNode(VertexData ed, List<VertexData> nodesAtDepthAbove) {
-        for(VertexData downstream: nodesAtDepthAbove){
-            for(String dsID: downstream.getUpstream()){
-                if(dsID.equals(ed.getId())) return true;
+        for (VertexData downstream : nodesAtDepthAbove) {
+            for (String dsID : downstream.getUpstream()) {
+                if (dsID.equals(ed.getId())) return true;
             }
         }
         return false;
@@ -224,13 +366,14 @@ public class MainWindowController implements Initializable {
 
     /**
      * Collect the nodes with no downstream linkages. Return these as a list.
+     *
      * @param vertexDataList the entire list of nodes to be parsed
      * @return a list of nodes with no downstream linkages
      */
-    private List<VertexData> findDownsteamLeaves(List<VertexData> vertexDataList){
+    private List<VertexData> findDownsteamLeaves(List<VertexData> vertexDataList) {
         List<VertexData> leaves = new ArrayList<>();
-        for(VertexData ed : vertexDataList){
-            if(ed.getDownstream().size() == 0) leaves.add(ed);
+        for (VertexData ed : vertexDataList) {
+            if (ed.getDownstream().size() == 0) leaves.add(ed);
         }
         return leaves;
     }
@@ -238,14 +381,19 @@ public class MainWindowController implements Initializable {
     /**
      * Enum representing the possible states of the program.
      */
-    private enum ProgramState{
+    private enum ProgramState {
         Loaded, Closed
     }
 
-    private VBox getStyledContainer(){
+    private VBox getStyledContainer() {
         VBox container = new VBox();
-        container.setAlignment(Pos.CENTER);
+        container.setAlignment(Pos.BOTTOM_CENTER);
         container.setStyle("-fx-background-color: blue");
         return container;
+    }
+
+    private class PreparationDisplayMaps {
+        Map<Node, Node> prepToDisplay = new HashMap<>();
+        Map<Integer, Node> depthToPrep = new HashMap<>();
     }
 }

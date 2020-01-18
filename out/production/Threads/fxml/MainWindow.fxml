@@ -9,10 +9,20 @@
 
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.ScrollPane?>
 <BorderPane fx:id="borderBase" fx:controller="com.edenrump.MainWindowController"
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>
-        <HBox fx:id="displayContainer" style="-fx-background-color: red" alignment="CENTER" spacing="50"/>
+        <ScrollPane fitToHeight="true" fitToWidth="true">
+            <StackPane>
+                <HBox fx:id="preparationContainer" style="-fx-background-color: rgba(1,0,0,0.2)" alignment="CENTER"
+                      spacing="50"/>
+                <AnchorPane fx:id="displayOverlay" style="-fx-background-color: rgba(0,1,0,0.2)"
+                            mouseTransparent="true"/>
+            </StackPane>
+        </ScrollPane>
     </center>
 </BorderPane>
