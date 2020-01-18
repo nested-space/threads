@@ -58,6 +58,10 @@ public class NamedRectangle extends StackPane implements Parameterisable {
         return mBackgroundRectangle.getWidth();
     }
 
+    public Rectangle getRectangle() {
+        return mBackgroundRectangle;
+    }
+
     /* ****************************************************************************************************************
      *   Parameters
      * ***************************************************************************************************************/

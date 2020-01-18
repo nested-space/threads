@@ -19,7 +19,6 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.Initializable;
-import javafx.geometry.Bounds;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -29,12 +28,15 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 import org.w3c.dom.css.Rect;
+import sun.security.provider.certpath.Vertex;
 
+import javax.xml.ws.Holder;
 import java.io.File;
 import java.net.URL;
 import java.util.*;
@@ -64,7 +66,7 @@ public class MainWindowController implements Initializable {
     /**
      * The vertex data currently associated with the display
      */
-    private List<VertexData> nodeInfoInMemory = new ArrayList<>();
+    private List<VertexData> vertexInfoInMemory = new ArrayList<>();
 
     /**
      * A map of node depth to node data
@@ -76,7 +78,17 @@ public class MainWindowController implements Initializable {
      */
     private Map<Integer, Node> displayDepthMap = new HashMap<>();
 
+    /**
+     * A map of IDs to preparation and display nodes.
+     */
+    private Map<String, DataAndNodes> idToNodeMap;
+
     private Map<Node, Node> preparationDisplayMap = new HashMap<>();
+
+    /**
+     * A list of edges currently displayed
+     */
+    private List<Line> edges = new ArrayList<>();
 
     /**
      * Initial actions to load the ribbon of the display and start the user interaction process
@@ -120,44 +132,61 @@ public class MainWindowController implements Initializable {
         mRibbon.addModule("Test Buttons", true);
 
         Button testAlignTop = new Button("Align Top");
-        testAlignTop.setOnAction(actionEvent -> {
+        testAlignTop.setOnAction(event -> {
             for (Node container : preparationContainer.getChildren()) {
                 if (container instanceof VBox) {
                     VBox v = (VBox) container;
                     v.setAlignment(Pos.TOP_CENTER);
                 }
             }
+            reconcilePrepAndDisplay();
         });
 
         Button testAlignCenter = new Button("Align Center");
-        testAlignCenter.setOnAction(actionEvent -> {
+        testAlignCenter.setOnAction(event -> {
             for (Node container : preparationContainer.getChildren()) {
                 if (container instanceof VBox) {
                     VBox v = (VBox) container;
                     v.setAlignment(Pos.CENTER);
                 }
             }
+            reconcilePrepAndDisplay();
         });
 
         Button testAlignBottom = new Button("Align Bottom");
-        testAlignBottom.setOnAction(actionEvent -> {
+        testAlignBottom.setOnAction(event -> {
             for (Node container : preparationContainer.getChildren()) {
                 if (container instanceof VBox) {
                     VBox v = (VBox) container;
                     v.setAlignment(Pos.BOTTOM_CENTER);
                 }
             }
+            reconcilePrepAndDisplay();
+        });
+
+        Button increaseSpacing = new Button("Spacing + ");
+        increaseSpacing.setOnAction(event -> {
+            preparationContainer.setSpacing(preparationContainer.getSpacing() + 25);
+            reconcilePrepAndDisplay();
+        });
+
+        Button decreaseSpacing = new Button("Spacing + ");
+        decreaseSpacing.setOnAction(event -> {
+            preparationContainer.setSpacing(preparationContainer.getSpacing() - 25);
+            reconcilePrepAndDisplay();
         });
 
         Button resolve = new Button("Resolve Display");
         resolve.setOnAction(actionEvent -> {
-            resolvePrepAndDisplay();
+            reconcilePrepAndDisplay();
         });
 
         mRibbon.addControlToModule("Test Buttons", testAlignTop);
         mRibbon.addControlToModule("Test Buttons", testAlignCenter);
         mRibbon.addControlToModule("Test Buttons", testAlignBottom);
         mRibbon.addControlToModule("Test Buttons", resolve);
+        mRibbon.addControlToModule("Test Buttons", increaseSpacing);
+        mRibbon.addControlToModule("Test Buttons", decreaseSpacing);
 
         borderPane.setTop(mRibbon);
     }
@@ -206,39 +235,69 @@ public class MainWindowController implements Initializable {
         programState = ProgramState.Closed;
 
         //Start up a new map
-        VertexData startingNode = new VertexData("Starting Node");
-        VertexData upstreamNode = new VertexData("Upstream Node", startingNode.getId());
-        upstreamNode.addDownstream(startingNode.getId());
-        startingNode.addUpstream(upstreamNode.getId());
-        nodeInfoInMemory.addAll(Arrays.asList(startingNode, upstreamNode));
-        nodeDepthMap = createNodeMapping(nodeInfoInMemory);
+        VertexData startingNode = new VertexData("End Node");
+        VertexData minusOne = new VertexData("n-1");
+        VertexData minusTwo = new VertexData("n-2");
+
+        minusOne.addDownstream(startingNode.getId());
+        startingNode.addUpstream(minusOne.getId());
+
+        minusTwo.addDownstream((minusOne.getId()));
+        minusOne.addUpstream((minusTwo.getId()));
+        vertexInfoInMemory.addAll(Arrays.asList(startingNode, minusOne, minusTwo));
+
+        nodeDepthMap = createNodeMapping(vertexInfoInMemory);
         PreparationDisplayMaps pdm = createNodeDisplay(nodeDepthMap);
+        idToNodeMap = pdm.idNodeMap;
         displayDepthMap = pdm.depthToPrep;
         preparationDisplayMap = pdm.prepToDisplay;
 
         //Load the preparation container with nodes
-        for (int i = 0; i < displayDepthMap.keySet().size(); i++) {
+        for (int i = displayDepthMap.keySet().size() - 1; i > -1; i--) {
             preparationContainer.getChildren().addAll(displayDepthMap.get(i));
+        }
+
+        //add edges
+        List<VertexData> unvisitedNodes = findUpstreamLeaves(vertexInfoInMemory);
+        while (unvisitedNodes.size() > 0) {
+            VertexData vd = unvisitedNodes.remove(0);
+            for (String id : vd.getDownstream()) unvisitedNodes.add(idToNodeMap.get(id).vertexData);
+
+            HolderRectangle dStart = (HolderRectangle) idToNodeMap.get(vd.getId()).displayNode;
+            System.out.println("Upstream Node: " + vd.getName());
+            for (String id : vd.getDownstream()) {
+                System.out.println("Downstream Node: " + idToNodeMap.get(id).vertexData.getName());
+                HolderRectangle dEnd = (HolderRectangle) idToNodeMap.get(id).displayNode;
+                Line edge = new Line();
+                edge.setStrokeWidth(2);
+                edge.setStrokeLineCap(StrokeLineCap.ROUND);
+                edge.startXProperty().bind(dStart.layoutXProperty().add(dStart.getHeaderRect().widthProperty()));
+                edge.startYProperty().bind(dStart.layoutYProperty().add(dStart.getHeaderRect().heightProperty().divide(2)));
+                edge.endXProperty().bind(dEnd.layoutXProperty());
+                edge.endYProperty().bind(dEnd.layoutYProperty().add(dEnd.getHeaderRect().heightProperty().divide(2)));
+                edges.add(edge);
+                displayOverlay.getChildren().add(0, edge);
+            }
         }
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
         Platform.runLater(() -> {
-            PauseTransition t = new PauseTransition(Duration.millis(200));
+            PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
                 displayOverlay.getChildren().addAll(preparationDisplayMap.values());
                 double x = displayOverlay.getLayoutBounds().getWidth() / 2;
                 double y = displayOverlay.getLayoutBounds().getHeight() / 2;
-                for(Node n : preparationDisplayMap.values()){
+                for (Node n : preparationDisplayMap.values()) {
                     n.setLayoutX(x);
                     n.setLayoutY(y);
                 }
-                resolvePrepAndDisplay();
+                reconcilePrepAndDisplay();
             });
             t.playFromStart();
         });
     }
 
-    private void resolvePrepAndDisplay() {
+    private void reconcilePrepAndDisplay() {
         Timeline all = new Timeline(30);
         for (Node prepNode : preparationDisplayMap.keySet()) {
             Node displayNode = preparationDisplayMap.get(prepNode);
@@ -270,7 +329,6 @@ public class MainWindowController implements Initializable {
      * @return the bounds in the current container that replicate in-scene the bounds of the prep node
      */
     private Double ltsY(Node node) {
-        System.out.println(node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY());
         return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
     }
 
@@ -297,6 +355,8 @@ public class MainWindowController implements Initializable {
                 displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
                 displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
                 displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
+
+                pdm.idNodeMap.put(data.getId(), new DataAndNodes(data, prepNode, displayNode));
                 pdm.prepToDisplay.put(prepNode, displayNode);
             }
             pdm.depthToPrep.put(depth, container);
@@ -316,7 +376,7 @@ public class MainWindowController implements Initializable {
      * Clear the current node mapping
      */
     private void clearNodeInformation() {
-        nodeInfoInMemory.clear();
+        vertexInfoInMemory.clear();
         nodeDepthMap.clear();
     }
 
@@ -379,21 +439,62 @@ public class MainWindowController implements Initializable {
     }
 
     /**
+     * Collect the nodes with no upstream linkages. Return these as a list.
+     *
+     * @param vertexDataList the entire list of nodes to be parsed
+     * @return a list of nodes with no upstream linkages
+     */
+    private List<VertexData> findUpstreamLeaves(List<VertexData> vertexDataList) {
+        List<VertexData> leaves = new ArrayList<>();
+        for (VertexData ed : vertexDataList) {
+            if (ed.getUpstream().size() == 0) leaves.add(ed);
+        }
+        return leaves;
+    }
+
+    /**
      * Enum representing the possible states of the program.
      */
     private enum ProgramState {
         Loaded, Closed
     }
 
+    /**
+     * Return a Parent node with styles pre-added. Useful for prototyping but should eventually be accomplished
+     * but stylesheets
+     *
+     * @return a styled VBox
+     */
     private VBox getStyledContainer() {
         VBox container = new VBox();
-        container.setAlignment(Pos.BOTTOM_CENTER);
+        container.setAlignment(Pos.CENTER);
         container.setStyle("-fx-background-color: blue");
         return container;
     }
 
+    /**
+     * Class representing the maps required to create a preparation section of the scene graph and mimic it in
+     * a displayed portion of the scene graph
+     */
     private class PreparationDisplayMaps {
         Map<Node, Node> prepToDisplay = new HashMap<>();
         Map<Integer, Node> depthToPrep = new HashMap<>();
+        Map<String, DataAndNodes> idNodeMap = new HashMap<>();
+    }
+
+    /**
+     * Class representing the information necessary to link the vertex data with its preparation node and its
+     * living node in the scene graph.
+     */
+    private class DataAndNodes {
+        VertexData vertexData;
+        Node preparationNode;
+        Node displayNode;
+
+        DataAndNodes(VertexData vd, Node p, Node d) {
+            this.vertexData = vd;
+            this.preparationNode = p;
+            this.displayNode = d;
+        }
     }
 }

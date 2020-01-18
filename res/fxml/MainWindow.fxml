@@ -18,10 +18,8 @@
     <center>
         <ScrollPane fitToHeight="true" fitToWidth="true">
             <StackPane>
-                <HBox fx:id="preparationContainer" style="-fx-background-color: rgba(1,0,0,0.2)" alignment="CENTER"
-                      spacing="50"/>
-                <AnchorPane fx:id="displayOverlay" style="-fx-background-color: rgba(0,1,0,0.2)"
-                            mouseTransparent="true"/>
+                <HBox fx:id="preparationContainer" style="-fx-opacity: 0" alignment="CENTER" spacing="50"/>
+                <AnchorPane fx:id="displayOverlay" mouseTransparent="true"/>
             </StackPane>
         </ScrollPane>
     </center>

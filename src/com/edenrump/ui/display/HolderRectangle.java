@@ -19,6 +19,7 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public class HolderRectangle extends VBox implements Parameterisable {
     private NamedRectangle mHeaderRectangle = new NamedRectangle();
     private VBox headerHolderVBox = new VBox();
     private ImageView headerImage = new ImageView();
+
     /* ****************************************************************************************************************
      *   Children
      * ***************************************************************************************************************/
@@ -83,6 +85,10 @@ public class HolderRectangle extends VBox implements Parameterisable {
 
     public Color getHeaderColor() {
         return (Color) headerHolderVBox.getBackground().getFills().get(0).getFill();
+    }
+
+    public Rectangle getHeaderRect() {
+        return mHeaderRectangle.getRectangle();
     }
 
     public void setHeaderColor(Color color) {
