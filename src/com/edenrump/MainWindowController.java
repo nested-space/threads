@@ -10,6 +10,8 @@
 package com.edenrump;
 
 import com.edenrump.config.Defaults;
+import com.edenrump.loaders.JSONLoader;
+import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.display.HolderRectangle;
 import com.edenrump.ui.menu.Ribbon;
@@ -126,43 +128,55 @@ public class MainWindowController implements Initializable {
             newButtonPressed();
         });
 
+        Button saveButton = new Button("Save");
+        saveButton.setOnAction(event -> {
+            FileChooser fc = new FileChooser();
+            fc.setTitle("Save To File");
+            fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("JSON", ".json"));
+            File f = fc.showSaveDialog(saveButton.getScene().getWindow());
+            if (f != null) {
+                System.out.println(JSONLoader.saveToJSON(new ThreadsData("Test", "Test", vertexInfoInMemory), f));
+            }
+        });
+
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, button);
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, newFileButton);
+        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, saveButton);
 
         mRibbon.addModule("Test Buttons", true);
 
-        Button testAlignTop = new Button("Align Top");
-        testAlignTop.setOnAction(event -> {
-            for (Node container : preparationContainer.getChildren()) {
-                if (container instanceof VBox) {
-                    VBox v = (VBox) container;
-                    v.setAlignment(Pos.TOP_CENTER);
-                }
-            }
-            reconcilePrepAndDisplay();
-        });
-
-        Button testAlignCenter = new Button("Align Center");
-        testAlignCenter.setOnAction(event -> {
-            for (Node container : preparationContainer.getChildren()) {
-                if (container instanceof VBox) {
-                    VBox v = (VBox) container;
-                    v.setAlignment(Pos.CENTER);
-                }
-            }
-            reconcilePrepAndDisplay();
-        });
-
-        Button testAlignBottom = new Button("Align Bottom");
-        testAlignBottom.setOnAction(event -> {
-            for (Node container : preparationContainer.getChildren()) {
-                if (container instanceof VBox) {
-                    VBox v = (VBox) container;
-                    v.setAlignment(Pos.BOTTOM_CENTER);
-                }
-            }
-            reconcilePrepAndDisplay();
-        });
+//        Button testAlignTop = new Button("Align Top");
+//        testAlignTop.setOnAction(event -> {
+//            for (Node container : preparationContainer.getChildren()) {
+//                if (container instanceof VBox) {
+//                    VBox v = (VBox) container;
+//                    v.setAlignment(Pos.TOP_CENTER);
+//                }
+//            }
+//            reconcilePrepAndDisplay();
+//        });
+//
+//        Button testAlignCenter = new Button("Align Center");
+//        testAlignCenter.setOnAction(event -> {
+//            for (Node container : preparationContainer.getChildren()) {
+//                if (container instanceof VBox) {
+//                    VBox v = (VBox) container;
+//                    v.setAlignment(Pos.CENTER);
+//                }
+//            }
+//            reconcilePrepAndDisplay();
+//        });
+//
+//        Button testAlignBottom = new Button("Align Bottom");
+//        testAlignBottom.setOnAction(event -> {
+//            for (Node container : preparationContainer.getChildren()) {
+//                if (container instanceof VBox) {
+//                    VBox v = (VBox) container;
+//                    v.setAlignment(Pos.BOTTOM_CENTER);
+//                }
+//            }
+//            reconcilePrepAndDisplay();
+//        });
 
         Button increaseSpacing = new Button("Spacing + ");
         increaseSpacing.setOnAction(event -> {
@@ -181,9 +195,9 @@ public class MainWindowController implements Initializable {
             reconcilePrepAndDisplay();
         });
 
-        mRibbon.addControlToModule("Test Buttons", testAlignTop);
-        mRibbon.addControlToModule("Test Buttons", testAlignCenter);
-        mRibbon.addControlToModule("Test Buttons", testAlignBottom);
+//        mRibbon.addControlToModule("Test Buttons", testAlignTop);
+//        mRibbon.addControlToModule("Test Buttons", testAlignCenter);
+//        mRibbon.addControlToModule("Test Buttons", testAlignBottom);
         mRibbon.addControlToModule("Test Buttons", resolve);
         mRibbon.addControlToModule("Test Buttons", increaseSpacing);
         mRibbon.addControlToModule("Test Buttons", decreaseSpacing);
@@ -297,6 +311,11 @@ public class MainWindowController implements Initializable {
         });
     }
 
+    /**
+     * Create animations to move display nodes to the same scene-locations as the preparation nodes
+     * TODO: determine whether node is still present, remove if necessary
+     * TODO: determine new nodes. Add if necessary
+     */
     private void reconcilePrepAndDisplay() {
         Timeline all = new Timeline(30);
         for (Node prepNode : preparationDisplayMap.keySet()) {
