@@ -18,7 +18,7 @@
     <center>
         <ScrollPane fitToHeight="true" fitToWidth="true">
             <StackPane>
-                <HBox fx:id="preparationContainer" style="-fx-opacity: 0" alignment="CENTER" spacing="50"/>
+                <HBox fx:id="preparationContainer" style="-fx-opacity: 0" alignment="CENTER" spacing="125"/>
                 <AnchorPane fx:id="displayOverlay" mouseTransparent="true"/>
             </StackPane>
         </ScrollPane>

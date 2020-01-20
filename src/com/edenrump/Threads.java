@@ -20,18 +20,18 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-public class Main extends Application {
-
+public class Threads extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         FXMLLoader fxmlLoader;
         Parent root;
-        primaryStage.setTitle(Defaults.APPLICATION_NAME + " | Visualiser");
+        primaryStage.setTitle(Defaults.createTitle("Visualiser"));
         primaryStage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
         try {
             fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/MainWindow.fxml"));
             root = fxmlLoader.load();
             MainWindowController mainWindowController = fxmlLoader.getController();
+            mainWindowController.setStage(primaryStage);
             primaryStage.setScene(new Scene(root));
             primaryStage.show();
         } catch (IOException io) {
@@ -43,4 +43,5 @@ public class Main extends Application {
     public static void main(String[] args) {
         launch(args);
     }
+
 }

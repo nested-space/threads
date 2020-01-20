@@ -21,12 +21,12 @@ public class JSONLoader {
 
     /**
      * Load a single ThreadsData from json file.
-     * @param fileloc the location of the file as a string
+     * @param file the location of the file as a string
      * @return ThreadsData loaded from file
      */
-    public static ThreadsData loadOneFromJSON(String fileloc){
+    public static ThreadsData loadOneFromJSON(File file){
         try{
-            BufferedReader r = new BufferedReader(new FileReader(fileloc));
+            BufferedReader r = new BufferedReader(new FileReader(file));
             return new Gson().fromJson(r, ThreadsData.class);
         } catch (FileNotFoundException e) {
             e.printStackTrace();

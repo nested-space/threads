@@ -13,7 +13,7 @@ import com.edenrump.config.Defaults;
 import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
-import com.edenrump.ui.display.HolderRectangle;
+import com.edenrump.ui.components.HolderRectangle;
 import com.edenrump.ui.menu.Ribbon;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -23,27 +23,31 @@ import javafx.application.Platform;
 import javafx.fxml.Initializable;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.image.ImageView;
+import javafx.scene.control.ButtonType;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.util.Duration;
-import org.w3c.dom.css.Rect;
-import sun.security.provider.certpath.Vertex;
 
-import javax.xml.ws.Holder;
 import java.io.File;
 import java.net.URL;
 import java.util.*;
 
 public class MainWindowController implements Initializable {
+
+    private Stage stage;
+
+    private String fileName;
+
+    private String fileID;
 
     /**
      * Top layer of application, base pane
@@ -114,69 +118,20 @@ public class MainWindowController implements Initializable {
     private void loadRibbon(BorderPane borderPane) {
         mRibbon.addModule(Defaults.LOAD_MODULE_NAME, false);
 
-        Button button = new Button("", new ImageView("/img/folder.png"));
-        button.setOnAction(actionEvent -> {
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Open Resource File");
-            File file = fileChooser.showOpenDialog(button.getScene().getWindow());
-            if (file != null) loadFile(file);
-            actionEvent.consume();
-        });
+        Button newFileButton = new Button("New");
+        newFileButton.setOnAction(actionEvent -> createNew());
 
-        Button newFileButton = new Button("", new ImageView("/img/wool.png"));
-        newFileButton.setOnAction(actionEvent -> {
-            newButtonPressed();
-        });
+        Button loadFileButton = new Button("Load");
+        loadFileButton.setOnAction(actionEvent -> loadFile());
 
         Button saveButton = new Button("Save");
-        saveButton.setOnAction(event -> {
-            FileChooser fc = new FileChooser();
-            fc.setTitle("Save To File");
-            fc.setSelectedExtensionFilter(new FileChooser.ExtensionFilter("JSON", ".json"));
-            File f = fc.showSaveDialog(saveButton.getScene().getWindow());
-            if (f != null) {
-                System.out.println(JSONLoader.saveToJSON(new ThreadsData("Test", "Test", vertexInfoInMemory), f));
-            }
-        });
+        saveButton.setOnAction(event -> saveFile());
 
-        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, button);
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, newFileButton);
+        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, loadFileButton);
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, saveButton);
 
         mRibbon.addModule("Test Buttons", true);
-
-//        Button testAlignTop = new Button("Align Top");
-//        testAlignTop.setOnAction(event -> {
-//            for (Node container : preparationContainer.getChildren()) {
-//                if (container instanceof VBox) {
-//                    VBox v = (VBox) container;
-//                    v.setAlignment(Pos.TOP_CENTER);
-//                }
-//            }
-//            reconcilePrepAndDisplay();
-//        });
-//
-//        Button testAlignCenter = new Button("Align Center");
-//        testAlignCenter.setOnAction(event -> {
-//            for (Node container : preparationContainer.getChildren()) {
-//                if (container instanceof VBox) {
-//                    VBox v = (VBox) container;
-//                    v.setAlignment(Pos.CENTER);
-//                }
-//            }
-//            reconcilePrepAndDisplay();
-//        });
-//
-//        Button testAlignBottom = new Button("Align Bottom");
-//        testAlignBottom.setOnAction(event -> {
-//            for (Node container : preparationContainer.getChildren()) {
-//                if (container instanceof VBox) {
-//                    VBox v = (VBox) container;
-//                    v.setAlignment(Pos.BOTTOM_CENTER);
-//                }
-//            }
-//            reconcilePrepAndDisplay();
-//        });
 
         Button increaseSpacing = new Button("Spacing + ");
         increaseSpacing.setOnAction(event -> {
@@ -195,9 +150,6 @@ public class MainWindowController implements Initializable {
             reconcilePrepAndDisplay();
         });
 
-//        mRibbon.addControlToModule("Test Buttons", testAlignTop);
-//        mRibbon.addControlToModule("Test Buttons", testAlignCenter);
-//        mRibbon.addControlToModule("Test Buttons", testAlignBottom);
         mRibbon.addControlToModule("Test Buttons", resolve);
         mRibbon.addControlToModule("Test Buttons", increaseSpacing);
         mRibbon.addControlToModule("Test Buttons", decreaseSpacing);
@@ -205,15 +157,67 @@ public class MainWindowController implements Initializable {
         borderPane.setTop(mRibbon);
     }
 
-    /**
-     * Determine whether a map is currently loaded. If yes, prompt user to close. If not, load new file.
-     */
-    private void newButtonPressed() {
-        if (programState == ProgramState.Loaded) {
-            if (promptUserClose()) createNew();
-        } else {
-            createNew();
+    private void saveFile() {
+        FileChooser fc = new FileChooser();
+        fc.setTitle("Save To File");
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
+        File file = fc.showSaveDialog(stage.getScene().getWindow());
+        if (file == null) {
+            return;
         }
+
+        if (!file.getName().contains(".")) {
+            file = new File(file.getAbsolutePath() + ".wool");
+        }
+
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", vertexInfoInMemory), file);
+
+        if (fate) {
+            stage.setTitle(Defaults.createTitle(file.getName()));
+        } else {
+            showFailureAlert("Save Failure",
+                    "Failed to save file",
+                    "File name valid but a problem occurred saving the data to JSON format");
+        }
+    }
+
+    /**
+     * Method attempts to load the file, if successful displays the information, if unsuccessful, prompts user
+     */
+    private void loadFile() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Open Resource File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
+        File file = fileChooser.showOpenDialog(stage.getScene().getWindow());
+        if (file == null) return;
+        if (programState == ProgramState.UNSAVED && !promptDiscardUnsavedContent()) return;
+
+        ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
+
+        if (loaded != null) {
+            clearAll();
+
+            vertexInfoInMemory = loaded.getVertices();
+            fileName = loaded.getName();
+            fileID = loaded.getId();
+            recastDisplayFromCachedData();
+
+        } else {
+
+        }
+    }
+
+    private void showFailureAlert(String alertTitle, String alertDescription, String alertText) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(alertTitle);
+        alert.setHeaderText(alertDescription);
+        alert.setContentText(alertText);
+        alert.showAndWait();
+    }
+
+    private void registerChange() {
+        programState = ProgramState.UNSAVED;
+        stage.setTitle(Defaults.createTitle(fileName) + "*");
     }
 
     /**
@@ -221,44 +225,60 @@ public class MainWindowController implements Initializable {
      *
      * @return the users decision
      */
-    private boolean promptUserClose() {
-        //TODO: prompt user whether to close the current file. Possibly add save option
-        return true;
+    private boolean promptDiscardUnsavedContent() {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Discard Unsaved Content?");
+        alert.setHeaderText("Proceeding will discard unsaved content");
+        alert.setContentText("Go ahead and discard?");
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.filter(buttonType -> buttonType == ButtonType.OK).isPresent()) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
      * The current state of the program.
      */
-    private ProgramState programState = ProgramState.Closed;
-
-    /**
-     * Method attempts to load the file, if successful displays the information, if unsuccessful, prompts user
-     *
-     * @param file the file to be loaded
-     */
-    private void loadFile(File file) {
-    }
+    private ProgramState programState = ProgramState.CLOSED;
 
     /**
      * Create a new thread map and display the start node
      */
     private void createNew() {
-        //Close everything down
-        clearNodeInformation();
-        clearNodeReals();
-        programState = ProgramState.Closed;
+        if (programState == ProgramState.UNSAVED && !promptDiscardUnsavedContent()) return;
 
+        clearAll();
+        ThreadsData startingState = initialState();
+        vertexInfoInMemory = startingState.getVertices();
+        fileName = startingState.getName();
+        fileID = startingState.getId();
+        recastDisplayFromCachedData();
+    }
+
+    private ThreadsData initialState(){
         //Start up a new map
         VertexData startingNode = new VertexData("End Node");
         VertexData minusOne = new VertexData("n-1");
         VertexData minusTwo = new VertexData("n-2");
+        VertexData minusTwoA = new VertexData("n-2a");
 
         minusOne.addDownstream(startingNode.getId());
-        startingNode.addUpstream(minusOne.getId());
-
         minusTwo.addDownstream((minusOne.getId()));
+        minusTwoA.addDownstream((minusOne.getId()));
+
+        startingNode.addUpstream(minusOne.getId());
         minusOne.addUpstream((minusTwo.getId()));
-        vertexInfoInMemory.addAll(Arrays.asList(startingNode, minusOne, minusTwo));
+        minusOne.addUpstream((minusTwoA.getId()));
+
+        return new ThreadsData("New File", UUID.randomUUID().toString(), Arrays.asList(
+                startingNode, minusOne, minusTwo, minusTwoA));
+    }
+
+    private void recastDisplayFromCachedData() {
+        if (stage != null) stage.setTitle(Defaults.createTitle(fileName));
 
         nodeDepthMap = createNodeMapping(vertexInfoInMemory);
         PreparationDisplayMaps pdm = createNodeDisplay(nodeDepthMap);
@@ -266,7 +286,9 @@ public class MainWindowController implements Initializable {
         displayDepthMap = pdm.depthToPrep;
         preparationDisplayMap = pdm.prepToDisplay;
 
-        //Load the preparation container with nodes
+        displayOverlay.getChildren().addAll(preparationDisplayMap.values());
+
+            //Load the preparation container with nodes
         for (int i = displayDepthMap.keySet().size() - 1; i > -1; i--) {
             preparationContainer.getChildren().addAll(displayDepthMap.get(i));
         }
@@ -278,12 +300,10 @@ public class MainWindowController implements Initializable {
             for (String id : vd.getDownstream()) unvisitedNodes.add(idToNodeMap.get(id).vertexData);
 
             HolderRectangle dStart = (HolderRectangle) idToNodeMap.get(vd.getId()).displayNode;
-            System.out.println("Upstream Node: " + vd.getName());
             for (String id : vd.getDownstream()) {
-                System.out.println("Downstream Node: " + idToNodeMap.get(id).vertexData.getName());
                 HolderRectangle dEnd = (HolderRectangle) idToNodeMap.get(id).displayNode;
                 Line edge = new Line();
-                edge.setStrokeWidth(2);
+                edge.setStrokeWidth(1);
                 edge.setStrokeLineCap(StrokeLineCap.ROUND);
                 edge.startXProperty().bind(dStart.layoutXProperty().add(dStart.getHeaderRect().widthProperty()));
                 edge.startYProperty().bind(dStart.layoutYProperty().add(dStart.getHeaderRect().heightProperty().divide(2)));
@@ -298,7 +318,6 @@ public class MainWindowController implements Initializable {
         Platform.runLater(() -> {
             PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
-                displayOverlay.getChildren().addAll(preparationDisplayMap.values());
                 double x = displayOverlay.getLayoutBounds().getWidth() / 2;
                 double y = displayOverlay.getLayoutBounds().getHeight() / 2;
                 for (Node n : preparationDisplayMap.values()) {
@@ -309,6 +328,16 @@ public class MainWindowController implements Initializable {
             });
             t.playFromStart();
         });
+
+    }
+
+    private void clearAll() {
+        System.out.println("Clearing Display!");
+        clearNodeInformation();
+        clearNodeReals();
+        reconcilePrepAndDisplay();
+        programState = ProgramState.CLOSED;
+        if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));
     }
 
     /**
@@ -317,18 +346,24 @@ public class MainWindowController implements Initializable {
      * TODO: determine new nodes. Add if necessary
      */
     private void reconcilePrepAndDisplay() {
+        double length = 350;
         Timeline all = new Timeline(30);
+
         for (Node prepNode : preparationDisplayMap.keySet()) {
-            Node displayNode = preparationDisplayMap.get(prepNode);
-            double prepX = prepNode.localToScene(prepNode.getLayoutBounds()).getMinX();
-            double prepY = prepNode.localToScene(prepNode.getLayoutBounds()).getMinY();
-            all.getKeyFrames().addAll(Arrays.asList((
-                            new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX()))),
+            Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new HolderRectangle());
+
+            all.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
-                    new KeyFrame(Duration.millis(350), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
-                    new KeyFrame(Duration.millis(350), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode)))));
+                    new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
+                    new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
+
+
         }
+        all.setOnFinished(event -> {
+        });
         all.playFromStart();
+//        System.out.println();
     }
 
     /**
@@ -389,13 +424,16 @@ public class MainWindowController implements Initializable {
     private void clearNodeReals() {
         preparationContainer.getChildren().clear();
         displayOverlay.getChildren().clear();
+        edges.clear();
     }
 
     /**
      * Clear the current node mapping
      */
     private void clearNodeInformation() {
+        System.out.println(preparationDisplayMap);
         vertexInfoInMemory.clear();
+        preparationDisplayMap.clear();
         nodeDepthMap.clear();
     }
 
@@ -471,11 +509,15 @@ public class MainWindowController implements Initializable {
         return leaves;
     }
 
+    public void setStage(Stage stage) {
+        this.stage = stage;
+    }
+
     /**
      * Enum representing the possible states of the program.
      */
     private enum ProgramState {
-        Loaded, Closed
+        SAVED, UNSAVED, CLOSED
     }
 
     /**
@@ -488,6 +530,7 @@ public class MainWindowController implements Initializable {
         VBox container = new VBox();
         container.setAlignment(Pos.CENTER);
         container.setStyle("-fx-background-color: blue");
+        container.setSpacing(50);
         return container;
     }
 

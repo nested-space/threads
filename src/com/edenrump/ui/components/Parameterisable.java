@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui.display;
+package com.edenrump.ui.components;
 
 import java.util.List;
 

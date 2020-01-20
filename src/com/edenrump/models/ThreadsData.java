@@ -9,12 +9,37 @@
 
 package com.edenrump.models;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Class representing the contents of a threads data set.
  */
 public class ThreadsData {
+
+    /**
+     * Return the name of the data set
+     * @return the name
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Return the id of the data set
+     * @return the id
+     */
+    public String getId() {
+        return id;
+    }
+
+    /**
+     * Return the vertex data in the dataset
+     * @return the vertex data
+     */
+    public List<VertexData> getVertices() {
+        return vertices;
+    }
 
     /**
      * The title of the dataset
@@ -41,7 +66,7 @@ public class ThreadsData {
     public ThreadsData(String name, String id, List<VertexData> vertices){
         this.name = name;
         this.id = id;
-        this.vertices = vertices;
+        this.vertices = new ArrayList<>(vertices);
 
     }
 }
