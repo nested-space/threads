@@ -17,6 +17,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.DoubleProperty;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
@@ -28,6 +29,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
+import javafx.util.Pair;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,7 +93,7 @@ public class ProcessDisplay {
     /**
      * A list of edges currently displayed
      */
-    private List<Line> edges = new ArrayList<>();
+    private List<Node> edges = new ArrayList<>();
 
     /**
      * The vertex data currently associated with the display
@@ -111,7 +113,6 @@ public class ProcessDisplay {
         }
         return leaves;
     }
-
 
     /**
      * Create node positions from the node map currently in memory
@@ -189,7 +190,6 @@ public class ProcessDisplay {
         return pdm;
     }
 
-
     /**
      * Collect the nodes with no upstream linkages. Return these as a list.
      *
@@ -203,7 +203,6 @@ public class ProcessDisplay {
         }
         return leaves;
     }
-
 
     /**
      * Return the Bounds of the node in the scene. Utility method to help concise code.
@@ -251,6 +250,9 @@ public class ProcessDisplay {
 //        System.out.println();
     }
 
+    /**
+     * Calculate the positions of vertices and re-create edges for the display based on data in the "vertices" list
+     */
     private void recastDisplayFromCachedData() {
         displayOverlay.getChildren().addAll(preparationDisplayMap.values());
 
@@ -268,13 +270,7 @@ public class ProcessDisplay {
             HolderRectangle dStart = (HolderRectangle) idToNodeMap.get(vd.getId()).displayNode;
             for (String id : vd.getDownstream()) {
                 HolderRectangle dEnd = (HolderRectangle) idToNodeMap.get(id).displayNode;
-                Line edge = new Line();
-                edge.setStrokeWidth(1);
-                edge.setStrokeLineCap(StrokeLineCap.ROUND);
-                edge.startXProperty().bind(dStart.layoutXProperty().add(dStart.getHeaderRect().widthProperty()));
-                edge.startYProperty().bind(dStart.layoutYProperty().add(dStart.getHeaderRect().heightProperty().divide(2)));
-                edge.endXProperty().bind(dEnd.layoutXProperty());
-                edge.endYProperty().bind(dEnd.layoutYProperty().add(dEnd.getHeaderRect().heightProperty().divide(2)));
+                Node edge = createEdge(dStart, dEnd);
                 edges.add(edge);
                 displayOverlay.getChildren().add(0, edge);
             }
@@ -297,6 +293,9 @@ public class ProcessDisplay {
 
     }
 
+    /**
+     * Clear all objects from the display pane and the preparation pane.
+     */
     public void clearDisplay(){
         clearDisplayObjects();
         clearPreparationInfoObjects();
@@ -335,6 +334,10 @@ public class ProcessDisplay {
         return container;
     }
 
+    /**
+     * Create a display that shows all the vertices
+     * @param vertices the vertices to show in the display
+     */
     public void create(List<VertexData> vertices) {
         this.vertices = vertices;
         nodeDepthMap = createNodeMapping(vertices);
@@ -342,6 +345,23 @@ public class ProcessDisplay {
         idToNodeMap = pdm.idNodeMap;
         displayDepthMap = pdm.depthToPrep;
         preparationDisplayMap = pdm.prepToDisplay;
+    }
+
+    /**
+     * Create a node (line) which links two vertices in the display. Return the node.
+     * @param startBox the vertex at the start of the line
+     * @param endBox the vertex at the end of the line
+     * @return a node that acts as an edge in the display
+     */
+    private Node createEdge(HolderRectangle startBox, HolderRectangle endBox){
+        Line edge = new Line();
+        edge.setStrokeWidth(1);
+        edge.setStrokeLineCap(StrokeLineCap.ROUND);
+        edge.startXProperty().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()));
+        edge.startYProperty().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
+        edge.endXProperty().bind(endBox.layoutXProperty());
+        edge.endYProperty().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
+        return edge;
     }
 
     public void show() {
