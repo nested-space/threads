@@ -16,11 +16,7 @@
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>
-        <ScrollPane fitToHeight="true" fitToWidth="true">
-            <StackPane>
-                <HBox fx:id="preparationContainer" style="-fx-opacity: 0" alignment="CENTER" spacing="125"/>
-                <AnchorPane fx:id="displayOverlay" mouseTransparent="true"/>
-            </StackPane>
+        <ScrollPane fx:id="displayWrapper" fitToHeight="true" fitToWidth="true">
         </ScrollPane>
     </center>
 </BorderPane>
