@@ -229,7 +229,7 @@ public class MainWindowController implements Initializable {
 
     private void clearAll() {
         vertexInfoInMemory.clear();
-        processDisplay.clearDisplay();
+        processDisplay.clearAll();
 
         programState = ProgramState.CLOSED;
         if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));

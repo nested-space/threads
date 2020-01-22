@@ -17,24 +17,25 @@ import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
-import javafx.util.Pair;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ProcessDisplay {
 
@@ -60,17 +61,21 @@ public class ProcessDisplay {
      */
     public AnchorPane displayOverlay = new AnchorPane();
 
-    public ProcessDisplay(ScrollPane display){
+    public ProcessDisplay(ScrollPane display) {
         processDisplay = display;
+        display.setPannable(true);
         processDisplay.setFitToHeight(true);
         processDisplay.setFitToWidth(true);
         processDisplay.setContent(prepDisplayStack);
+        processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+        processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
 
         prepDisplayStack.getChildren().addAll(displayOverlay, preparationContainer);
 
         preparationContainer.setOpacity(0);
         preparationContainer.setAlignment(Pos.CENTER);
         preparationContainer.setSpacing(125);
+        preparationContainer.setMouseTransparent(true);
     }
 
     /**
@@ -81,7 +86,7 @@ public class ProcessDisplay {
     /**
      * A map of node containers to info nodes
      */
-    private Map<Integer, Node> displayDepthMap = new HashMap<>();
+    private Map<Integer, Node> depthToPrepContainerMap = new HashMap<>();
 
     /**
      * A map of IDs to preparation and display nodes.
@@ -170,24 +175,111 @@ public class ProcessDisplay {
         for (int depth = 0; depth < nodeDepthMap.keySet().size(); depth++) {
             VBox container = getStyledContainer();
             for (VertexData data : nodeDepthMap.get(depth)) {
-
-                //Create node for preparation area of display
-                HolderRectangle prepNode = new HolderRectangle();
-                prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
-                container.getChildren().add(prepNode);
-
-                //Create node for display overlay
-                HolderRectangle displayNode = new HolderRectangle();
-                displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
-                displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
-                displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
-
-                pdm.idNodeMap.put(data.getId(), new DataAndNodes(data, prepNode, displayNode));
-                pdm.prepToDisplay.put(prepNode, displayNode);
+                DataAndNodes nodeData = createNodes(data, depth);
+                container.getChildren().add(nodeData.preparationNode);
+                pdm.idNodeMap.put(data.getId(), nodeData);
+                pdm.prepToDisplay.put(nodeData.preparationNode, nodeData.displayNode);
             }
-            pdm.depthToPrep.put(depth, container);
+            pdm.depthToPrepcontainer.put(depth, container);
         }
         return pdm;
+    }
+
+    private DataAndNodes createNodes(VertexData data, Integer depth) {
+        //Create node for preparation area of display
+        HolderRectangle prepNode = new HolderRectangle();
+        prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+
+        //Create node for display overlay
+        HolderRectangle displayNode = new HolderRectangle();
+        displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+        displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
+        displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
+        displayNode.setOnContextMenuRequested(event -> {
+            vertexContextMenu(data.getId()).show(displayNode, event.getScreenX(), event.getScreenY());
+        });
+
+        return new DataAndNodes(data, prepNode, displayNode, depth);
+    }
+
+    private ContextMenu vertexContextMenu(String id) {
+        ContextMenu cm = new ContextMenu();
+
+        MenuItem addDownstream = new MenuItem("Add Downstream Node");
+        addDownstream.setOnAction(event -> {
+            int depth = idToNodeMap.getOrDefault(id, new DataAndNodes(null, null, null, -1500)).depth;
+            if (depth != -1500) {
+                VertexData vdNew = new VertexData("New Node");
+                vdNew.addUpstream(id);
+                for (VertexData vdSource : vertices) {
+                    if (vdSource.getId().equals(id)) vdSource.addDownstream(vdNew.getId());
+                }
+                addNode(vdNew, depth - 1, id, Side.RIGHT);
+
+            }
+        });
+
+        MenuItem addUpstream = new MenuItem("Add Upstream Node");
+        addUpstream.setOnAction(event -> {
+            int depth = idToNodeMap.getOrDefault(id, new DataAndNodes(null, null, null, -1500)).depth;
+            if (depth != -1500) {
+                VertexData vdNew = new VertexData("New Node");
+                vdNew.addDownstream(id);
+                for (VertexData vdSource : vertices) {
+                    if (vdSource.getId().equals(id)) vdSource.addUpstream(vdNew.getId());
+                }
+                addNode(vdNew, depth + 1, id, Side.LEFT);
+
+            }
+        });
+
+        cm.getItems().addAll(addDownstream, addUpstream);
+        return cm;
+    }
+
+    private void addNode(VertexData newNodeVertexData, int newNodeDepth, String sourceVertexId, Side newNodeSide) {
+        DataAndNodes newNodeData = createNodes(newNodeVertexData, newNodeDepth);
+        Pane container = (Pane) depthToPrepContainerMap.get(newNodeDepth);
+
+        if (container == null) {
+            container = getStyledContainer();
+            depthToPrepContainerMap.put(newNodeDepth, container);
+            resetPreparationContainerOrders();
+        }
+
+        container.getChildren().add(newNodeData.preparationNode);
+
+        newNodeData.displayNode.setOpacity(0);
+
+        vertices.add(newNodeVertexData);
+        preparationDisplayMap.put(newNodeData.preparationNode, newNodeData.displayNode);
+        idToNodeMap.put(newNodeVertexData.getId(), newNodeData);
+
+        Node edge;
+        if (newNodeSide == Side.RIGHT) {
+            edge = createEdge((HolderRectangle) idToNodeMap.get(sourceVertexId).displayNode,
+                    (HolderRectangle) idToNodeMap.get(newNodeVertexData.getId()).displayNode);
+        } else if (newNodeSide == Side.LEFT) {
+            edge = createEdge((HolderRectangle) idToNodeMap.get(newNodeVertexData.getId()).displayNode,
+                    (HolderRectangle) idToNodeMap.get(sourceVertexId).displayNode);
+        } else {
+            throw new IllegalStateException("Only upstream and downstream nodes are allowed. Unprocessable Side on node creation");
+        }
+
+        edge.setOpacity(0);
+        displayOverlay.getChildren().add(newNodeData.displayNode);
+        displayOverlay.getChildren().add(0, edge);
+
+        Platform.runLater(() -> {
+            PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
+            t.setOnFinished(actionEvent -> {
+                newNodeData.displayNode.setLayoutX(ltsX(newNodeData.preparationNode));
+                newNodeData.displayNode.setLayoutY(ltsY(newNodeData.preparationNode));
+                reconcilePrepAndDisplay();
+            });
+            t.playFromStart();
+        });
+
     }
 
     /**
@@ -233,33 +325,55 @@ public class ProcessDisplay {
         double length = 350;
         Timeline all = new Timeline(30);
 
+        for (Node displayNode : displayOverlay.getChildren()) {
+            if (displayNode.getOpacity() == 0) {
+                all.getKeyFrames().addAll(
+                        new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
+                        new KeyFrame(Duration.millis(length), new KeyValue(displayNode.opacityProperty(), 1)));
+                if (displayNode instanceof HolderRectangle) {
+                    HolderRectangle d = (HolderRectangle) displayNode;
+                    all.getKeyFrames().addAll(
+                            new KeyFrame(Duration.millis(0), new KeyValue(d.translateYProperty(), -12)),
+                            new KeyFrame(Duration.millis(length), new KeyValue(d.translateYProperty(), 0)));
+                }
+            }
+        }
+
         for (Node prepNode : preparationDisplayMap.keySet()) {
             Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new HolderRectangle());
+
 
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
                     new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
                     new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
+        }
+        all.playFromStart();
+    }
 
+    private void resetPreparationContainerOrders() {
+        preparationContainer.getChildren().clear();
+        for (Object key : new LinkedList<>(depthToPrepContainerMap.keySet()).stream()
+                .sorted(Comparator.reverseOrder())
+                .collect(Collectors.toList())) {
+            if (key instanceof Integer) {
+                preparationContainer.getChildren().add(depthToPrepContainerMap.get(key));
+            }
 
         }
-        all.setOnFinished(event -> {
-        });
-        all.playFromStart();
-//        System.out.println();
     }
 
     /**
      * Calculate the positions of vertices and re-create edges for the display based on data in the "vertices" list
      */
     private void recastDisplayFromCachedData() {
+        clearNodes();
         displayOverlay.getChildren().addAll(preparationDisplayMap.values());
+        for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
         //Load the preparation container with nodes
-        for (int i = displayDepthMap.keySet().size() - 1; i > -1; i--) {
-            preparationContainer.getChildren().addAll(displayDepthMap.get(i));
-        }
+        resetPreparationContainerOrders();
 
         //add edges
         List<VertexData> unvisitedNodes = findUpstreamLeaves(vertices);
@@ -271,6 +385,7 @@ public class ProcessDisplay {
             for (String id : vd.getDownstream()) {
                 HolderRectangle dEnd = (HolderRectangle) idToNodeMap.get(id).displayNode;
                 Node edge = createEdge(dStart, dEnd);
+                edge.setOpacity(0);
                 edges.add(edge);
                 displayOverlay.getChildren().add(0, edge);
             }
@@ -296,26 +411,25 @@ public class ProcessDisplay {
     /**
      * Clear all objects from the display pane and the preparation pane.
      */
-    public void clearDisplay(){
-        clearDisplayObjects();
-        clearPreparationInfoObjects();
+    public void clearAll() {
+        clearNodes();
+        clearInfo();
     }
 
     /**
      * Clear the current display and return it to an unloaded state
      */
-    private void clearDisplayObjects() {
+    private void clearNodes() {
         preparationContainer.getChildren().clear();
         displayOverlay.getChildren().clear();
-        vertices.clear();
-        edges.clear();
     }
 
     /**
      * Clear all information in the preparation display maps
      */
-    private void clearPreparationInfoObjects(){
-        displayOverlay.getChildren().clear();
+    private void clearInfo() {
+        vertices.clear();
+        edges.clear();
         preparationDisplayMap.clear();
         nodeDepthMap.clear();
     }
@@ -336,6 +450,7 @@ public class ProcessDisplay {
 
     /**
      * Create a display that shows all the vertices
+     *
      * @param vertices the vertices to show in the display
      */
     public void create(List<VertexData> vertices) {
@@ -343,25 +458,32 @@ public class ProcessDisplay {
         nodeDepthMap = createNodeMapping(vertices);
         PreparationDisplayMaps pdm = createNodeDisplay(nodeDepthMap);
         idToNodeMap = pdm.idNodeMap;
-        displayDepthMap = pdm.depthToPrep;
+        depthToPrepContainerMap = pdm.depthToPrepcontainer;
         preparationDisplayMap = pdm.prepToDisplay;
     }
 
     /**
      * Create a node (line) which links two vertices in the display. Return the node.
+     *
      * @param startBox the vertex at the start of the line
-     * @param endBox the vertex at the end of the line
+     * @param endBox   the vertex at the end of the line
      * @return a node that acts as an edge in the display
      */
-    private Node createEdge(HolderRectangle startBox, HolderRectangle endBox){
-        Line edge = new Line();
-        edge.setStrokeWidth(1);
-        edge.setStrokeLineCap(StrokeLineCap.ROUND);
-        edge.startXProperty().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()));
-        edge.startYProperty().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
-        edge.endXProperty().bind(endBox.layoutXProperty());
-        edge.endYProperty().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
-        return edge;
+    private Node createEdge(HolderRectangle startBox, HolderRectangle endBox) {
+        CubicCurve newEdge = new CubicCurve();
+        newEdge.startXProperty().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()));
+        newEdge.startYProperty().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.endXProperty().bind(endBox.layoutXProperty());
+        newEdge.endYProperty().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.controlX1Property().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()).add(50));
+        newEdge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
+        newEdge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.setStroke(Color.BLUE);
+        newEdge.setStrokeWidth(0.5);
+        newEdge.setStrokeLineCap(StrokeLineCap.ROUND);
+        newEdge.setFill(Color.TRANSPARENT);
+        return newEdge;
     }
 
     public void show() {
@@ -374,7 +496,7 @@ public class ProcessDisplay {
      */
     private class PreparationDisplayMaps {
         Map<Node, Node> prepToDisplay = new HashMap<>();
-        Map<Integer, Node> depthToPrep = new HashMap<>();
+        Map<Integer, Node> depthToPrepcontainer = new HashMap<>();
         Map<String, DataAndNodes> idNodeMap = new HashMap<>();
     }
 
@@ -383,11 +505,13 @@ public class ProcessDisplay {
      * living node in the scene graph.
      */
     private class DataAndNodes {
+        int depth;
         VertexData vertexData;
         Node preparationNode;
         Node displayNode;
 
-        DataAndNodes(VertexData vd, Node p, Node d) {
+        DataAndNodes(VertexData vd, Node p, Node d, int depth) {
+            this.depth = depth;
             this.vertexData = vd;
             this.preparationNode = p;
             this.displayNode = d;
