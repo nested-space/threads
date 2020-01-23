@@ -249,7 +249,7 @@ public class ProcessDisplay {
      * @param event    the mouse-event that triggered the selection
      */
     private void selectVertex(String vertexId, MouseEvent event) {
-        if(event.getButton() != MouseButton.SECONDARY) { //TODO: work out whether source of event (vertexID) is already highlighted
+        if(event.getButton() == MouseButton.SECONDARY) { //TODO: work out whether source of event (vertexID) is already highlighted
             event.consume();
             return;
         }
