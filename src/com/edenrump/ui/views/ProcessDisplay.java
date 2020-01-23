@@ -11,7 +11,7 @@ package com.edenrump.ui.views;
 
 import com.edenrump.config.Defaults;
 import com.edenrump.models.VertexData;
-import com.edenrump.ui.components.HolderRectangle;
+import com.edenrump.ui.components.TitledContentPane;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
@@ -223,11 +223,11 @@ public class ProcessDisplay {
      */
     private DataAndNodes createNodes(VertexData data, Integer depth) {
         //Create node for preparation area of display
-        HolderRectangle prepNode = new HolderRectangle();
+        TitledContentPane prepNode = new TitledContentPane();
         prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
 
         //Create node for display overlay
-        HolderRectangle displayNode = new HolderRectangle();
+        TitledContentPane displayNode = new TitledContentPane();
         displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
@@ -266,7 +266,7 @@ public class ProcessDisplay {
         lastSelected = selection;
         lowlightAllnodes();
         for (VertexData n : selectedVertices) {
-            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(n.getId()).displayNode;
+            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(n.getId()).displayNode;
             displayNode.highlight();
         }
         event.consume();
@@ -382,7 +382,7 @@ public class ProcessDisplay {
      */
     private void lowlightAllnodes() {
         for (String id : idToNodeMap.keySet()) {
-            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
+            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).displayNode;
             displayNode.lowlight();
         }
     }
@@ -392,7 +392,7 @@ public class ProcessDisplay {
      */
     private void resetHighlightingOnAllNodes() {
         for (String id : idToNodeMap.keySet()) {
-            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
+            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).displayNode;
             displayNode.resetHighlighting();
         }
     }
@@ -468,11 +468,11 @@ public class ProcessDisplay {
 
         Node edge;
         if (newNodeSide == Side.RIGHT) {
-            edge = createEdge((HolderRectangle) idToNodeMap.get(sourceVertexId).displayNode,
-                    (HolderRectangle) idToNodeMap.get(newNodeVertexData.getId()).displayNode);
+            edge = createEdge((TitledContentPane) idToNodeMap.get(sourceVertexId).displayNode,
+                    (TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).displayNode);
         } else if (newNodeSide == Side.LEFT) {
-            edge = createEdge((HolderRectangle) idToNodeMap.get(newNodeVertexData.getId()).displayNode,
-                    (HolderRectangle) idToNodeMap.get(sourceVertexId).displayNode);
+            edge = createEdge((TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).displayNode,
+                    (TitledContentPane) idToNodeMap.get(sourceVertexId).displayNode);
         } else {
             throw new IllegalStateException("Only upstream and downstream nodes are allowed. Unprocessable Side on node creation");
         }
@@ -540,8 +540,8 @@ public class ProcessDisplay {
                 all.getKeyFrames().addAll(
                         new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
                         new KeyFrame(Duration.millis(length), new KeyValue(displayNode.opacityProperty(), 1)));
-                if (displayNode instanceof HolderRectangle) {
-                    HolderRectangle d = (HolderRectangle) displayNode;
+                if (displayNode instanceof TitledContentPane) {
+                    TitledContentPane d = (TitledContentPane) displayNode;
                     all.getKeyFrames().addAll(
                             new KeyFrame(Duration.millis(0), new KeyValue(d.translateYProperty(), -12)),
                             new KeyFrame(Duration.millis(length), new KeyValue(d.translateYProperty(), 0)));
@@ -550,7 +550,7 @@ public class ProcessDisplay {
         }
 
         for (Node prepNode : preparationDisplayMap.keySet()) {
-            Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new HolderRectangle());
+            Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new TitledContentPane());
 
 
             all.getKeyFrames().addAll(
@@ -594,9 +594,9 @@ public class ProcessDisplay {
             VertexData vd = unvisitedNodes.remove(0);
             for (String id : vd.getDownstream()) unvisitedNodes.add(idToNodeMap.get(id).vertexData);
 
-            HolderRectangle dStart = (HolderRectangle) idToNodeMap.get(vd.getId()).displayNode;
+            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(vd.getId()).displayNode;
             for (String id : vd.getDownstream()) {
-                HolderRectangle dEnd = (HolderRectangle) idToNodeMap.get(id).displayNode;
+                TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(id).displayNode;
                 Node edge = createEdge(dStart, dEnd);
                 edge.setOpacity(0);
                 edges.add(edge);
@@ -682,16 +682,16 @@ public class ProcessDisplay {
      * @param endBox   the vertex at the end of the line
      * @return a node that acts as an edge in the display
      */
-    private Node createEdge(HolderRectangle startBox, HolderRectangle endBox) {
+    private Node createEdge(TitledContentPane startBox, TitledContentPane endBox) {
         CubicCurve newEdge = new CubicCurve();
-        newEdge.startXProperty().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()));
-        newEdge.startYProperty().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.startXProperty().bind(startBox.layoutXProperty().add(startBox.widthProperty()));
+        newEdge.startYProperty().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
         newEdge.endXProperty().bind(endBox.layoutXProperty());
-        newEdge.endYProperty().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
-        newEdge.controlX1Property().bind(startBox.layoutXProperty().add(startBox.getHeaderRect().widthProperty()).add(50));
-        newEdge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.endYProperty().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
+        newEdge.controlX1Property().bind(startBox.layoutXProperty().add(startBox.widthProperty()).add(50));
+        newEdge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
         newEdge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
-        newEdge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.getHeaderRect().heightProperty().divide(2)));
+        newEdge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
         newEdge.setStroke(Color.BLUE);
         newEdge.setStrokeWidth(0.5);
         newEdge.setStrokeLineCap(StrokeLineCap.ROUND);
