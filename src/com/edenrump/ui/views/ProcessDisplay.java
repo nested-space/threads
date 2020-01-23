@@ -17,20 +17,18 @@ import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.collections.transformation.SortedList;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
-import javafx.scene.shape.Line;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
@@ -80,6 +78,15 @@ public class ProcessDisplay {
      * The vertex data currently associated with the display
      */
     private List<VertexData> vertices = new ArrayList<>();
+    /**
+     * A list of the currently-selected vertices in the process display window
+     */
+    private ObservableList<VertexData> selectedVertices = FXCollections.observableArrayList();
+
+    /**
+     * The last-selected node in the display. Null if no node selected.
+     */
+    private VertexData lastSelected;
 
     /**
      * Create a new Process Display
@@ -97,10 +104,24 @@ public class ProcessDisplay {
         processDisplay.setContent(prepDisplayStack);
         prepDisplayStack.getChildren().addAll(displayOverlay, preparationContainer);
 
+        displayOverlay.setOnMouseClicked(event -> {
+            unHighlightAllnodes();
+            selectedVertices.clear();
+            lastSelected = null;
+        });
+
         preparationContainer.setOpacity(0);
         preparationContainer.setAlignment(Pos.CENTER);
         preparationContainer.setSpacing(125);
         preparationContainer.setMouseTransparent(true);
+    }
+
+    /**
+     * Return the list of the currently selected vertices as an observable list
+     * @return an observable list of selected vertices //TODO: wrap as read-only
+     */
+    public ObservableList<VertexData> getSelectedVertices() {
+        return selectedVertices;
     }
 
     /**
@@ -203,8 +224,47 @@ public class ProcessDisplay {
         displayNode.setOnContextMenuRequested(event -> {
             vertexContextMenu(data.getId()).show(displayNode, event.getScreenX(), event.getScreenY());
         });
+        displayNode.setOnMouseClicked(event -> {
+            selectVertex(data.getId(), event);
+        });
 
         return new DataAndNodes(data, prepNode, displayNode, depth);
+    }
+
+    /**
+     * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
+     * or expand it.
+     * @param vertexId the vertex selected
+     * @param event the mouse-event that triggered the selection
+     */
+    private void selectVertex(String vertexId, MouseEvent event){
+        VertexData selection = idToNodeMap.get(vertexId).vertexData;
+        if(event.isShiftDown() || event.isControlDown()){
+            if(!selectedVertices.contains(selection)) {
+                selectedVertices.add(selection);
+            }
+        } else {
+            selectedVertices.setAll(selection);
+        }
+
+        lastSelected = selection;
+        unHighlightAllnodes();
+        System.out.println(selectedVertices.size());
+        for(VertexData n: selectedVertices){
+            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(n.getId()).displayNode;
+            displayNode.highlight();
+        }
+        event.consume();
+    }
+
+    /**
+     * Utility method to unhighlight all nodes in the idToNodeMap
+     */
+    private void unHighlightAllnodes(){
+        for(String id : idToNodeMap.keySet()){
+            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
+            displayNode.lowlight();
+        }
     }
 
     /**

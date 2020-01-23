@@ -16,6 +16,7 @@ import com.edenrump.models.VertexData;
 import com.edenrump.ui.menu.Ribbon;
 import com.edenrump.ui.views.ProcessDisplay;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
@@ -66,13 +67,24 @@ public class MainWindowController implements Initializable {
      * The vertex data currently associated with the display
      */
     private List<VertexData> vertexInfoInMemory = new ArrayList<>();
-    
+
+    /**
+     * A list of the currently-selected vertices in the process display window
+     */
+    private ObservableList<VertexData> selectedVertices = FXCollections.observableArrayList();
+
     /**
      * Initial actions to load the ribbon of the display and start the user interaction process
      */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         processDisplay = new ProcessDisplay(displayWrapper);
+        selectedVertices = processDisplay.getSelectedVertices();
+        selectedVertices.addListener((ListChangeListener<VertexData>) c -> {
+            while(c.next()){
+                System.out.println("Added: " + c.getAddedSubList() + "| Removed: " + c.getRemoved());
+            }
+        });
         loadRibbon(borderBase);
         createNew();
     }
