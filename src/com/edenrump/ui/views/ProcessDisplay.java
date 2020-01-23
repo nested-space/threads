@@ -90,6 +90,7 @@ public class ProcessDisplay {
 
     /**
      * Create a new Process Display
+     *
      * @param display the pane on which the processdisplay should be rendered
      */
     public ProcessDisplay(ScrollPane display) {
@@ -118,6 +119,7 @@ public class ProcessDisplay {
 
     /**
      * Return the list of the currently selected vertices as an observable list
+     *
      * @return an observable list of selected vertices //TODO: wrap as read-only
      */
     public ObservableList<VertexData> getSelectedVertices() {
@@ -207,7 +209,8 @@ public class ProcessDisplay {
     /**
      * Create a DataAndNodes construct linking vertex data with nodes in the scene graph
      * for a given VD and depth
-     * @param data the vertex data
+     *
+     * @param data  the vertex data
      * @param depth the graph depth of the vertex
      * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
      */
@@ -234,15 +237,17 @@ public class ProcessDisplay {
     /**
      * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
      * or expand it.
+     *
      * @param vertexId the vertex selected
-     * @param event the mouse-event that triggered the selection
+     * @param event    the mouse-event that triggered the selection
      */
-    private void selectVertex(String vertexId, MouseEvent event){
+    private void selectVertex(String vertexId, MouseEvent event) {
         VertexData selection = idToNodeMap.get(vertexId).vertexData;
-        if(event.isShiftDown() || event.isControlDown()){
-            if(!selectedVertices.contains(selection)) {
-                selectedVertices.add(selection);
-            }
+        if (event.isShiftDown()) {
+            System.out.println("Last selection: " + lastSelected.getName());
+            selectedVertices.setAll(findShortestPath(lastSelected, selection, vertices));
+        } else if (event.isControlDown()) {
+            if (!selectedVertices.contains(selection)) selectedVertices.add(selection);
         } else {
             selectedVertices.setAll(selection);
         }
@@ -250,7 +255,7 @@ public class ProcessDisplay {
         lastSelected = selection;
         unHighlightAllnodes();
         System.out.println(selectedVertices.size());
-        for(VertexData n: selectedVertices){
+        for (VertexData n : selectedVertices) {
             HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(n.getId()).displayNode;
             displayNode.highlight();
         }
@@ -258,10 +263,113 @@ public class ProcessDisplay {
     }
 
     /**
+     * Determine the shortest path between two vertices in the given vertex data map. Implements Dijkstra's shortest path
+     * No benefit to implementing A* because network topology will likely be low and computational time taken to
+     * optimise priority queue will likely outweigh gains.
+     *
+     * @param startVertex      the statring vertex for the search
+     * @param desinationVertex the destination vertex
+     * @param allVertices      the vertex data map
+     * @return an ordered list containing
+     */
+    private List<VertexData> findShortestPath(VertexData startVertex, VertexData desinationVertex, List<VertexData> allVertices) {
+        //if startVertex isn't in allVertices, return empty list because this isn't going to work...
+        if (!allVertices.contains(startVertex)) return new ArrayList<>();
+
+        //populate initial priority queue
+        List<PriorityItem> priorityQueue = new LinkedList<>();
+        Map<String, PriorityItem> idPriorityItemMap = new HashMap<>();
+        for (VertexData v : allVertices) {
+            PriorityItem item;
+            if (v.equals(startVertex)) {
+                item = new PriorityItem(0, v);
+            } else {
+                item = new PriorityItem(Integer.MAX_VALUE, v);
+            }
+            priorityQueue.add(item);
+            idPriorityItemMap.put(v.getId(), item);
+        }
+        Collections.sort(priorityQueue);
+        List<PriorityItem> visited = new ArrayList<>();
+
+        int cycles = 0;
+        boolean bestPathFound = false;
+        while (cycles < 1500 && !bestPathFound) {
+            PriorityItem currentItem = priorityQueue.get(0);
+            System.out.println("Current item: " + currentItem.vertex.getName());
+            visited.add(currentItem);
+            priorityQueue.remove(currentItem);
+
+            //add adjacent nodes to a visit next list
+            String[] adjacentVertices = new String[currentItem.vertex.getDownstream().size() + currentItem.vertex.getUpstream().size()];
+            System.arraycopy(currentItem.vertex.getDownstream().toArray(), 0, adjacentVertices, 0, currentItem.vertex.getDownstream().size());
+            System.arraycopy(currentItem.vertex.getUpstream().toArray(), 0, adjacentVertices, currentItem.vertex.getDownstream().size(), currentItem.vertex.getUpstream().size());
+            for (String id : adjacentVertices) {
+                PriorityItem adjacentItem = idPriorityItemMap.get(id);
+                if(visited.contains(adjacentItem)) continue; //don't go back to nodes already visited
+                if ((currentItem.distance + 1) < adjacentItem.distance) {
+                    adjacentItem.distance = currentItem.distance + 1; //all edge lengths are 1 in this implementation
+                    adjacentItem.previousItem = currentItem;
+                }
+            }
+
+            cycles++;
+            Collections.sort(priorityQueue);
+            if(priorityQueue.get(0).vertex == desinationVertex) {
+                bestPathFound = true;
+            } else {
+                currentItem = priorityQueue.get(0);
+            }
+        }
+
+        if (!bestPathFound) return new ArrayList<>(); //if maxed out cycles, return empty list rather than null
+
+        List<VertexData> path = new LinkedList<>();
+        PriorityItem retraceCaret = priorityQueue.get(0);
+        while (retraceCaret.vertex != startVertex) {
+            path.add(retraceCaret.vertex);
+            retraceCaret = retraceCaret.previousItem;
+        }
+        path.add(retraceCaret.vertex);
+        Collections.reverse(path);
+        return path;
+    }
+
+    private class PriorityItem implements Comparable<PriorityItem> {
+
+        int distance;
+        private VertexData vertex;
+        PriorityItem previousItem;
+
+        PriorityItem(int distance, VertexData vertex) {
+            this.distance = distance;
+            this.vertex = vertex;
+            previousItem = null;
+        }
+
+        /**
+         * Compares this object with the specified object for order.  Returns a
+         * negative integer, zero, or a positive integer as this object is less
+         * than, equal to, or greater than the specified object.
+         *
+         * @param other the object to be compared.
+         * @return a negative integer, zero, or a positive integer as this object
+         * is less than, equal to, or greater than the specified object.
+         * @throws NullPointerException if the specified object is null
+         * @throws ClassCastException   if the specified object's type prevents it
+         *                              from being compared to this object.
+         */
+        @Override
+        public int compareTo(PriorityItem other) {
+            return Integer.compare(this.distance, other.distance);
+        }
+    }
+
+    /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
-    private void unHighlightAllnodes(){
-        for(String id : idToNodeMap.keySet()){
+    private void unHighlightAllnodes() {
+        for (String id : idToNodeMap.keySet()) {
             HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
             displayNode.lowlight();
         }
@@ -269,6 +377,7 @@ public class ProcessDisplay {
 
     /**
      * Create a context menu associated with a vertex
+     *
      * @param id the id of the vertex
      * @return the context menu
      */
@@ -311,10 +420,11 @@ public class ProcessDisplay {
      * Create a new NodeAndData construct from the given vertex data. Link the new node to the source
      * node. Create an edge to represent the link. Add nodes to their respective points in teh scene graph
      * and refresh the display
+     *
      * @param newNodeVertexData the data associated with the new vertex
-     * @param newNodeDepth the graph depth of the new vertex
-     * @param sourceVertexId the node to which the new node should be linked. Logic is you cannot
-     * @param newNodeSide the relative position (left or right) of the new vertex with respect to the source vertex
+     * @param newNodeDepth      the graph depth of the new vertex
+     * @param sourceVertexId    the node to which the new node should be linked. Logic is you cannot
+     * @param newNodeSide       the relative position (left or right) of the new vertex with respect to the source vertex
      */
     private void addNode(VertexData newNodeVertexData, int newNodeDepth, String sourceVertexId, Side newNodeSide) {
         DataAndNodes newNodeData = createNodes(newNodeVertexData, newNodeDepth);
