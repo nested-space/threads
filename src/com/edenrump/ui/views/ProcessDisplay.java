@@ -39,13 +39,10 @@ import java.util.stream.Collectors;
 
 public class ProcessDisplay {
 
-    private StackPane prepDisplayStack = new StackPane();
-
     /**
      * Scrollpane that encapsulates all process preparation and display containers.
      */
     public ScrollPane processDisplay;
-
     /**
      * Container in the background of the display that deals with position of nodes
      * <p>
@@ -55,21 +52,49 @@ public class ProcessDisplay {
      * have to code my own Region types to hold the nodes.
      */
     public HBox preparationContainer = new HBox();
-
     /**
      * Anchorpane at the front of the display in which real nodes are placed
      */
     public AnchorPane displayOverlay = new AnchorPane();
+    /**
+     * A map of node depth to node data
+     */
+    private Map<Integer, List<VertexData>> nodeDepthMap = new HashMap<>();
+    /**
+     * A map of node containers to info nodes
+     */
+    private Map<Integer, Node> depthToPrepContainerMap = new HashMap<>();
+    /**
+     * A map of IDs to preparation and display nodes.
+     */
+    private Map<String, DataAndNodes> idToNodeMap;
+    /**
+     * Map which links preparation nodes with their display counterparts
+     */
+    private Map<Node, Node> preparationDisplayMap = new HashMap<>();
+    /**
+     * A list of edges currently displayed
+     */
+    private List<Node> edges = new ArrayList<>();
+    /**
+     * The vertex data currently associated with the display
+     */
+    private List<VertexData> vertices = new ArrayList<>();
 
+    /**
+     * Create a new Process Display
+     * @param display the pane on which the processdisplay should be rendered
+     */
     public ProcessDisplay(ScrollPane display) {
         processDisplay = display;
         display.setPannable(true);
         processDisplay.setFitToHeight(true);
         processDisplay.setFitToWidth(true);
-        processDisplay.setContent(prepDisplayStack);
         processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
         processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
 
+        StackPane prepDisplayStack = new StackPane();
+        processDisplay.setContent(prepDisplayStack);
         prepDisplayStack.getChildren().addAll(displayOverlay, preparationContainer);
 
         preparationContainer.setOpacity(0);
@@ -77,33 +102,6 @@ public class ProcessDisplay {
         preparationContainer.setSpacing(125);
         preparationContainer.setMouseTransparent(true);
     }
-
-    /**
-     * A map of node depth to node data
-     */
-    private Map<Integer, List<VertexData>> nodeDepthMap = new HashMap<>();
-
-    /**
-     * A map of node containers to info nodes
-     */
-    private Map<Integer, Node> depthToPrepContainerMap = new HashMap<>();
-
-    /**
-     * A map of IDs to preparation and display nodes.
-     */
-    private Map<String, DataAndNodes> idToNodeMap;
-
-    private Map<Node, Node> preparationDisplayMap = new HashMap<>();
-
-    /**
-     * A list of edges currently displayed
-     */
-    private List<Node> edges = new ArrayList<>();
-
-    /**
-     * The vertex data currently associated with the display
-     */
-    private List<VertexData> vertices = new ArrayList<>();
 
     /**
      * Collect the nodes with no downstream linkages. Return these as a list.
@@ -185,6 +183,13 @@ public class ProcessDisplay {
         return pdm;
     }
 
+    /**
+     * Create a DataAndNodes construct linking vertex data with nodes in the scene graph
+     * for a given VD and depth
+     * @param data the vertex data
+     * @param depth the graph depth of the vertex
+     * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
+     */
     private DataAndNodes createNodes(VertexData data, Integer depth) {
         //Create node for preparation area of display
         HolderRectangle prepNode = new HolderRectangle();
@@ -202,6 +207,11 @@ public class ProcessDisplay {
         return new DataAndNodes(data, prepNode, displayNode, depth);
     }
 
+    /**
+     * Create a context menu associated with a vertex
+     * @param id the id of the vertex
+     * @return the context menu
+     */
     private ContextMenu vertexContextMenu(String id) {
         ContextMenu cm = new ContextMenu();
 
@@ -237,6 +247,15 @@ public class ProcessDisplay {
         return cm;
     }
 
+    /**
+     * Create a new NodeAndData construct from the given vertex data. Link the new node to the source
+     * node. Create an edge to represent the link. Add nodes to their respective points in teh scene graph
+     * and refresh the display
+     * @param newNodeVertexData the data associated with the new vertex
+     * @param newNodeDepth the graph depth of the new vertex
+     * @param sourceVertexId the node to which the new node should be linked. Logic is you cannot
+     * @param newNodeSide the relative position (left or right) of the new vertex with respect to the source vertex
+     */
     private void addNode(VertexData newNodeVertexData, int newNodeDepth, String sourceVertexId, Side newNodeSide) {
         DataAndNodes newNodeData = createNodes(newNodeVertexData, newNodeDepth);
         Pane container = (Pane) depthToPrepContainerMap.get(newNodeDepth);
@@ -352,6 +371,9 @@ public class ProcessDisplay {
         all.playFromStart();
     }
 
+    /**
+     * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
+     */
     private void resetPreparationContainerOrders() {
         preparationContainer.getChildren().clear();
         for (Object key : new LinkedList<>(depthToPrepContainerMap.keySet()).stream()
@@ -486,6 +508,9 @@ public class ProcessDisplay {
         return newEdge;
     }
 
+    /**
+     * Method to allow external programs to show the context of the cached data on the display
+     */
     public void show() {
         recastDisplayFromCachedData();
     }

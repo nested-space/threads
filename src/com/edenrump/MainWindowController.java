@@ -15,6 +15,8 @@ import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.menu.Ribbon;
 import com.edenrump.ui.views.ProcessDisplay;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -30,12 +32,24 @@ import java.util.*;
 
 public class MainWindowController implements Initializable {
 
+    /**
+     * The stage on which the scene graph of the application is displayed. Useful for changing window titles
+     */
     private Stage stage;
 
+    /**
+     * The current loaded file
+     */
     private String fileName;
 
+    /**
+     * The ID of the current loaded file
+     */
     private String fileID;
 
+    /**
+     * the display pane of the process.
+     */
     private ProcessDisplay processDisplay;
 
     /**
@@ -52,7 +66,7 @@ public class MainWindowController implements Initializable {
      * The vertex data currently associated with the display
      */
     private List<VertexData> vertexInfoInMemory = new ArrayList<>();
-
+    
     /**
      * Initial actions to load the ribbon of the display and start the user interaction process
      */
@@ -101,6 +115,9 @@ public class MainWindowController implements Initializable {
         borderPane.setTop(mRibbon);
     }
 
+    /**
+     * Prompt the user to select a file and save the currently loaded process display to a flat file on the users hard drive
+     */
     private void saveFile() {
         FileChooser fc = new FileChooser();
         fc.setTitle("Save To File");
@@ -155,14 +172,24 @@ public class MainWindowController implements Initializable {
         }
     }
 
-    private void showFailureAlert(String alertTitle, String alertDescription, String alertText) {
+    /**
+     * Utility method. Create an alert and show it to the user
+     * @param windowTitle the window title of the alert
+     * @param headerText the text to include as the header text of the alert window
+     * @param descriptionText the text to include as the description text of the alert
+     */
+    private void showFailureAlert(String windowTitle, String headerText, String descriptionText) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(alertTitle);
-        alert.setHeaderText(alertDescription);
-        alert.setContentText(alertText);
+        alert.setTitle(windowTitle);
+        alert.setHeaderText(headerText);
+        alert.setContentText(descriptionText);
         alert.showAndWait();
     }
 
+    /**
+     * Utility method. Register that a change has been made to the information in the cache and change the
+     * window title to display an asterisk after the file name
+     */
     private void registerChange() {
         programState = ProgramState.UNSAVED;
         stage.setTitle(Defaults.createTitle(fileName) + "*");
@@ -208,6 +235,10 @@ public class MainWindowController implements Initializable {
         processDisplay.show();
     }
 
+    /**
+     * Create a new display with a standard set-up of vertices
+     * @return the seed display
+     */
     private ThreadsData initialState(){
         //Start up a new map
         VertexData startingNode = new VertexData("End Node");
@@ -227,6 +258,9 @@ public class MainWindowController implements Initializable {
                 startingNode, minusOne, minusTwo, minusTwoA));
     }
 
+    /**
+     * Clear all vertices in memory. Clear the process dispaly. Close the current file. Reset the window title
+     */
     private void clearAll() {
         vertexInfoInMemory.clear();
         processDisplay.clearAll();
@@ -235,6 +269,10 @@ public class MainWindowController implements Initializable {
         if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));
     }
 
+    /**
+     * Set the Stage that holds the scene graph for this window. Useful for changing window titles..
+     * @param stage the stage for this window
+     */
     public void setStage(Stage stage) {
         this.stage = stage;
     }
