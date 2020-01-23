@@ -81,9 +81,6 @@ public class MainWindowController implements Initializable {
         processDisplay = new ProcessDisplay(displayWrapper);
         selectedVertices = processDisplay.getSelectedVertices();
         selectedVertices.addListener((ListChangeListener<VertexData>) c -> {
-            while(c.next()){
-                System.out.println("Added: " + c.getAddedSubList() + "| Removed: " + c.getRemoved());
-            }
         });
         loadRibbon(borderBase);
         createNew();

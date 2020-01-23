@@ -199,22 +199,30 @@ public class HolderRectangle extends VBox implements Parameterisable {
         getChildren().add(0, headerHolderVBox);
         getChildren().add(childHolderVBox);
 
-        lowlight();
+        resetHighlighting();
     }
 
     /* *************************************************
      *   Styling
      * ************************************************/
 
+
     public void highlight() {
         String cssLayout = "-fx-border-color: red;\n";
         setStyle(cssLayout);
+        setOpacity(1);
     }
 
     public void lowlight() {
         String cssLayout = "-fx-border-color: blue;\n";
         setStyle(cssLayout);
+        setOpacity(0.3);
+    }
 
+    public void resetHighlighting(){
+        String cssLayout = "-fx-border-color: blue;\n";
+        setStyle(cssLayout);
+        setOpacity(1);
     }
 
 }

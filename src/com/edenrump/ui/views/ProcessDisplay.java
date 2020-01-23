@@ -25,6 +25,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -98,15 +99,21 @@ public class ProcessDisplay {
         display.setPannable(true);
         processDisplay.setFitToHeight(true);
         processDisplay.setFitToWidth(true);
-        processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
-        processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+        Platform.runLater(()->{
+            PauseTransition timeForWindowToLoad = new PauseTransition(Duration.seconds(2));
+            timeForWindowToLoad.setOnFinished(event -> {
+                processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+                processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+            });
+            timeForWindowToLoad.play();
+        });
 
         StackPane prepDisplayStack = new StackPane();
         processDisplay.setContent(prepDisplayStack);
         prepDisplayStack.getChildren().addAll(displayOverlay, preparationContainer);
 
         displayOverlay.setOnMouseClicked(event -> {
-            unHighlightAllnodes();
+            resetHighlightingOnAllNodes();
             selectedVertices.clear();
             lastSelected = null;
         });
@@ -242,9 +249,13 @@ public class ProcessDisplay {
      * @param event    the mouse-event that triggered the selection
      */
     private void selectVertex(String vertexId, MouseEvent event) {
+        if(event.getButton() != MouseButton.SECONDARY) { //TODO: work out whether source of event (vertexID) is already highlighted
+            event.consume();
+            return;
+        }
+        
         VertexData selection = idToNodeMap.get(vertexId).vertexData;
-        if (event.isShiftDown()) {
-            System.out.println("Last selection: " + lastSelected.getName());
+        if (event.isShiftDown() && lastSelected != null) {
             selectedVertices.setAll(findShortestPath(lastSelected, selection, vertices));
         } else if (event.isControlDown()) {
             if (!selectedVertices.contains(selection)) selectedVertices.add(selection);
@@ -253,8 +264,7 @@ public class ProcessDisplay {
         }
 
         lastSelected = selection;
-        unHighlightAllnodes();
-        System.out.println(selectedVertices.size());
+        lowlightAllnodes();
         for (VertexData n : selectedVertices) {
             HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(n.getId()).displayNode;
             displayNode.highlight();
@@ -296,7 +306,6 @@ public class ProcessDisplay {
         boolean bestPathFound = false;
         while (cycles < 1500 && !bestPathFound) {
             PriorityItem currentItem = priorityQueue.get(0);
-            System.out.println("Current item: " + currentItem.vertex.getName());
             visited.add(currentItem);
             priorityQueue.remove(currentItem);
 
@@ -306,7 +315,7 @@ public class ProcessDisplay {
             System.arraycopy(currentItem.vertex.getUpstream().toArray(), 0, adjacentVertices, currentItem.vertex.getDownstream().size(), currentItem.vertex.getUpstream().size());
             for (String id : adjacentVertices) {
                 PriorityItem adjacentItem = idPriorityItemMap.get(id);
-                if(visited.contains(adjacentItem)) continue; //don't go back to nodes already visited
+                if (visited.contains(adjacentItem)) continue; //don't go back to nodes already visited
                 if ((currentItem.distance + 1) < adjacentItem.distance) {
                     adjacentItem.distance = currentItem.distance + 1; //all edge lengths are 1 in this implementation
                     adjacentItem.previousItem = currentItem;
@@ -315,7 +324,7 @@ public class ProcessDisplay {
 
             cycles++;
             Collections.sort(priorityQueue);
-            if(priorityQueue.get(0).vertex == desinationVertex) {
+            if (priorityQueue.get(0).vertex == desinationVertex) {
                 bestPathFound = true;
             } else {
                 currentItem = priorityQueue.get(0);
@@ -335,6 +344,9 @@ public class ProcessDisplay {
         return path;
     }
 
+    /**
+     * Class representing an item in the priority queue of a Dijkstra's shortest-path calculation.
+     */
     private class PriorityItem implements Comparable<PriorityItem> {
 
         int distance;
@@ -368,10 +380,20 @@ public class ProcessDisplay {
     /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
-    private void unHighlightAllnodes() {
+    private void lowlightAllnodes() {
         for (String id : idToNodeMap.keySet()) {
             HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
             displayNode.lowlight();
+        }
+    }
+
+    /**
+     * Utility method to unhighlight all nodes in the idToNodeMap
+     */
+    private void resetHighlightingOnAllNodes() {
+        for (String id : idToNodeMap.keySet()) {
+            HolderRectangle displayNode = (HolderRectangle) idToNodeMap.get(id).displayNode;
+            displayNode.resetHighlighting();
         }
     }
 
@@ -468,7 +490,6 @@ public class ProcessDisplay {
             });
             t.playFromStart();
         });
-
     }
 
     /**
