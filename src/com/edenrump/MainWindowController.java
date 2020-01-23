@@ -18,12 +18,13 @@ import com.edenrump.ui.views.ProcessDisplay;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.ScrollPane;
+import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -32,6 +33,11 @@ import java.net.URL;
 import java.util.*;
 
 public class MainWindowController implements Initializable {
+
+    /**
+     * Display pane for information about the process and selected contents
+     */
+    public FlowPane infoPane;
 
     /**
      * The stage on which the scene graph of the application is displayed. Useful for changing window titles
@@ -81,6 +87,13 @@ public class MainWindowController implements Initializable {
         processDisplay = new ProcessDisplay(displayWrapper);
         selectedVertices = processDisplay.getSelectedVertices();
         selectedVertices.addListener((ListChangeListener<VertexData>) c -> {
+            c.next();
+            setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
+            String[] names = new String[c.getList().size()];
+            for(int i=0; i<c.getList().size(); i++){
+                names[i] = c.getList().get(i).getName();
+            }
+            setInfoPaneComments(names);
         });
         loadRibbon(borderBase);
         createNew();
@@ -166,19 +179,53 @@ public class MainWindowController implements Initializable {
 
         if (loaded != null) {
             clearAll();
-
             vertexInfoInMemory = loaded.getVertices();
             fileName = loaded.getName();
             fileID = loaded.getId();
 
-            //TODO: pass data to display
-
             processDisplay.create(vertexInfoInMemory);
             processDisplay.show();
 
-        } else {
-
+            setInfoPaneTitle(vertexInfoInMemory.size(), 0);
+            setInfoPaneComments();
         }
+    }
+
+    /**
+     * Container for infopane comments
+     */
+    @FXML
+    private VBox commentPane = new VBox();
+
+    /**
+     * Label holding the title of the infoPane
+     */
+    @FXML
+    private Label infoPaneTitle = new Label();
+
+    /**
+     * Set the title of the infoPane as "Vertices: " + total + " (" + selected + ")"
+     * @param total the total number of vertices in the display
+     * @param selected the total number of vertices selected
+     */
+    private void setInfoPaneTitle(Integer total, Integer selected){
+        infoPaneTitle.setText("Vertices: " + total + " (" + selected + ")");
+    }
+
+    /**
+     * Set the comments in the info pane //TODO: replace with better vertex descriptions
+     * @param comments the comments to be added
+     */
+    private void setInfoPaneComments(String... comments){
+        commentPane.getChildren().clear();
+        if(comments.length==0) return;
+        commentPane.getChildren().addAll(new Separator(Orientation.HORIZONTAL));
+        for(String comment : comments){
+            Label label = new Label(comment);
+            label.getStyleClass().add("comment-text");
+            commentPane.getChildren().add(label);
+        }
+        commentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
     }
 
     /**
@@ -233,7 +280,6 @@ public class MainWindowController implements Initializable {
      */
     private void createNew() {
         if (programState == ProgramState.UNSAVED && !promptDiscardUnsavedContent()) return;
-
         clearAll();
         ThreadsData startingState = initialState();
         vertexInfoInMemory = startingState.getVertices();
@@ -242,6 +288,9 @@ public class MainWindowController implements Initializable {
 
         processDisplay.create(vertexInfoInMemory);
         processDisplay.show();
+
+        setInfoPaneTitle(vertexInfoInMemory.size(), 0);
+        setInfoPaneComments();
     }
 
     /**

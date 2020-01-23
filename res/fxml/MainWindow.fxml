@@ -7,16 +7,31 @@
   ~  ******************************************************************************/
   -->
 
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
 <BorderPane fx:id="borderBase" fx:controller="com.edenrump.MainWindowController"
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>
-        <ScrollPane fx:id="displayWrapper" fitToHeight="true" fitToWidth="true">
-        </ScrollPane>
+            <ScrollPane fx:id="displayWrapper"/>
     </center>
+    <right>
+        <ScrollPane fitToWidth="true" fitToHeight="true">
+            <FlowPane fx:id="infoPane" orientation="VERTICAL" styleClass="flowPane" prefWidth="300" minWidth="300">
+                <padding>
+                    <Insets topRightBottomLeft="25"/>
+                </padding>
+                <Label fx:id="infoPaneTitle" styleClass="big-grey-text"/>
+                <VBox fx:id="commentPane" spacing="10">
+                    <padding>
+                        <Insets top="10" bottom="25"/>
+                    </padding>
+                </VBox>
+            </FlowPane>
+        </ScrollPane>
+    </right>
 </BorderPane>

@@ -19,6 +19,7 @@
 
     /*highlght colour derived from lightblue*/
     -fx-window-highlight: derive(-fx-navy-color, 90%);
+    -fx-window-aside: derive(-fx-navy-color, 99%);
     -fx-lightblue-background-color: derive(-fx-window-highlight, 90%);
     -fx-lightblue-highlight: derive(-fx-window-highlight, 70%);
 
@@ -29,6 +30,10 @@
 
 .borderPane{
     -fx-background-color: -fx-window-highlight;
+}
+
+.flowPane {
+    -fx-background-color: -fx-window-aside;
 }
 
 .active{
@@ -54,5 +59,16 @@
     -fx-font-size: 16pt;
     -fx-font-weight: bold;
     -fx-font-family: "Arial Rounded MT Bold";
-    -fx-text-fill: -fx-platinum-color;
+    -fx-text-fill: -fx-disabled;
+}
+
+.comment-text{
+    -fx-font-weight: bold;
+    -fx-font-family: "Arial Rounded MT Bold";
+    -fx-text-fill: -fx-disabled;
+}
+
+.separator *.line {
+-fx-border-style: solid;
+-fx-border-width: 1px;
 }
