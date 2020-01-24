@@ -25,6 +25,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
@@ -83,7 +84,6 @@ public class ProcessDisplay {
      * A list of the currently-selected vertices in the process display window
      */
     private ObservableList<VertexData> selectedVertices = FXCollections.observableArrayList();
-
     /**
      * The last-selected node in the display. Null if no node selected.
      */
@@ -99,7 +99,7 @@ public class ProcessDisplay {
         display.setPannable(true);
         processDisplay.setFitToHeight(true);
         processDisplay.setFitToWidth(true);
-        Platform.runLater(()->{
+        Platform.runLater(() -> {
             PauseTransition timeForWindowToLoad = new PauseTransition(Duration.seconds(2));
             timeForWindowToLoad.setOnFinished(event -> {
                 processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
@@ -231,8 +231,10 @@ public class ProcessDisplay {
         displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
+        displayNode.setId(data.getId());
         displayNode.setOnContextMenuRequested(event -> {
-            vertexContextMenu(data.getId()).show(displayNode, event.getScreenX(), event.getScreenY());
+            showContextMenu(displayNode, standardVertexContextMenu(data.getId()), event);
+            event.consume();
         });
         displayNode.setOnMouseClicked(event -> {
             selectVertex(data.getId(), event);
@@ -242,6 +244,11 @@ public class ProcessDisplay {
     }
 
     /**
+     * The current context menu. Prevents multiple context menus being shown simultaneously.
+     */
+    private ContextMenu currentlyShown = new ContextMenu();
+
+    /**
      * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
      * or expand it.
      *
@@ -249,27 +256,58 @@ public class ProcessDisplay {
      * @param event    the mouse-event that triggered the selection
      */
     private void selectVertex(String vertexId, MouseEvent event) {
-        if(event.getButton() == MouseButton.SECONDARY) { //TODO: work out whether source of event (vertexID) is already highlighted
+        if (event.getButton() == MouseButton.SECONDARY && selectedVertices.stream().map(VertexData::getId).collect(Collectors.toList()).contains(vertexId)) {
             event.consume();
             return;
         }
-        
+
         VertexData selection = idToNodeMap.get(vertexId).vertexData;
         if (event.isShiftDown() && lastSelected != null) {
             selectedVertices.setAll(findShortestPath(lastSelected, selection, vertices));
         } else if (event.isControlDown()) {
             if (!selectedVertices.contains(selection)) selectedVertices.add(selection);
+            lastSelected = selection;
         } else {
             selectedVertices.setAll(selection);
+            lastSelected = selection;
         }
 
-        lastSelected = selection;
-        lowlightAllnodes();
-        for (VertexData n : selectedVertices) {
-            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(n.getId()).displayNode;
-            displayNode.highlight();
-        }
+        selectedVertices.stream()
+                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
+                .forEach(pane -> {
+                    pane.highlight();
+                    if (selectedVertices.size() == 1) {
+                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
+                    } else {
+                        pane.setOnContextMenuRequested(e -> {
+                            showContextMenu(pane, standardVertexContextMenu(pane.getId()), e);
+                        });
+                    }
+                });
+
+        vertices.stream()
+                .filter(v -> !selectedVertices.contains(v))
+                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
+                .forEach(pane -> {
+                    pane.lowlight();
+                    pane.setOnContextMenuRequested(null);
+                });
+
         event.consume();
+    }
+
+    /**
+     * Close the currently shown context method and show the context menu provided
+     *
+     * @param pane the pane generating the context menu
+     * @param c    the context menu to be shown
+     * @param e    the event generating the context menu
+     */
+    private void showContextMenu(Pane pane, ContextMenu c, ContextMenuEvent e) {
+        currentlyShown.hide();
+        currentlyShown = c;
+        currentlyShown.show(pane, e.getScreenX(), e.getScreenY());
+
     }
 
     /**
@@ -283,6 +321,8 @@ public class ProcessDisplay {
      * @return an ordered list containing
      */
     private List<VertexData> findShortestPath(VertexData startVertex, VertexData desinationVertex, List<VertexData> allVertices) {
+        if (desinationVertex == startVertex) return new ArrayList<>(Collections.singletonList(startVertex));
+
         //if startVertex isn't in allVertices, return empty list because this isn't going to work...
         if (!allVertices.contains(startVertex)) return new ArrayList<>();
 
@@ -345,49 +385,6 @@ public class ProcessDisplay {
     }
 
     /**
-     * Class representing an item in the priority queue of a Dijkstra's shortest-path calculation.
-     */
-    private class PriorityItem implements Comparable<PriorityItem> {
-
-        int distance;
-        private VertexData vertex;
-        PriorityItem previousItem;
-
-        PriorityItem(int distance, VertexData vertex) {
-            this.distance = distance;
-            this.vertex = vertex;
-            previousItem = null;
-        }
-
-        /**
-         * Compares this object with the specified object for order.  Returns a
-         * negative integer, zero, or a positive integer as this object is less
-         * than, equal to, or greater than the specified object.
-         *
-         * @param other the object to be compared.
-         * @return a negative integer, zero, or a positive integer as this object
-         * is less than, equal to, or greater than the specified object.
-         * @throws NullPointerException if the specified object is null
-         * @throws ClassCastException   if the specified object's type prevents it
-         *                              from being compared to this object.
-         */
-        @Override
-        public int compareTo(PriorityItem other) {
-            return Integer.compare(this.distance, other.distance);
-        }
-    }
-
-    /**
-     * Utility method to unhighlight all nodes in the idToNodeMap
-     */
-    private void lowlightAllnodes() {
-        for (String id : idToNodeMap.keySet()) {
-            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).displayNode;
-            displayNode.lowlight();
-        }
-    }
-
-    /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
     private void resetHighlightingOnAllNodes() {
@@ -398,12 +395,12 @@ public class ProcessDisplay {
     }
 
     /**
-     * Create a context menu associated with a vertex
+     * Simplest context menu associated with a vertex
      *
      * @param id the id of the vertex
      * @return the context menu
      */
-    private ContextMenu vertexContextMenu(String id) {
+    private ContextMenu standardVertexContextMenu(String id) {
         ContextMenu cm = new ContextMenu();
 
         MenuItem addDownstream = new MenuItem("Add Downstream Node");
@@ -435,6 +432,20 @@ public class ProcessDisplay {
         });
 
         cm.getItems().addAll(addDownstream, addUpstream);
+        return cm;
+    }
+
+    /**
+     * Create a context menu associated with a vertex where only a single vertex has been selected
+     *
+     * @param id the id of the vertex
+     * @return the context menu
+     */
+    private ContextMenu singleSelectedVertexContextMenu(String id) {
+        ContextMenu cm = standardVertexContextMenu(id);
+        MenuItem delete = new MenuItem("Delete (currently not live)");
+        MenuItem edit = new MenuItem("Edit (currently not live)");
+        cm.getItems().addAll(delete, edit);
         return cm;
     }
 
@@ -733,4 +744,38 @@ public class ProcessDisplay {
             this.displayNode = d;
         }
     }
+    
+    /**
+     * Class representing an item in the priority queue of a Dijkstra's shortest-path calculation.
+     */
+    private class PriorityItem implements Comparable<PriorityItem> {
+
+        int distance;
+        private VertexData vertex;
+        PriorityItem previousItem;
+
+        PriorityItem(int distance, VertexData vertex) {
+            this.distance = distance;
+            this.vertex = vertex;
+            previousItem = null;
+        }
+
+        /**
+         * Compares this object with the specified object for order.  Returns a
+         * negative integer, zero, or a positive integer as this object is less
+         * than, equal to, or greater than the specified object.
+         *
+         * @param other the object to be compared.
+         * @return a negative integer, zero, or a positive integer as this object
+         * is less than, equal to, or greater than the specified object.
+         * @throws NullPointerException if the specified object is null
+         * @throws ClassCastException   if the specified object's type prevents it
+         *                              from being compared to this object.
+         */
+        @Override
+        public int compareTo(PriorityItem other) {
+            return Integer.compare(this.distance, other.distance);
+        }
+    }
+
 }
