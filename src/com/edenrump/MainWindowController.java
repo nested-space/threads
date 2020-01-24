@@ -23,6 +23,8 @@ import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
@@ -110,16 +112,20 @@ public class MainWindowController implements Initializable {
      * @param borderPane BorderPane at the top of which ribbon is to be placed
      */
     private void loadRibbon(BorderPane borderPane) {
+        double iconSize = 16;
         mRibbon.addModule(Defaults.LOAD_MODULE_NAME, false);
 
-        Button newFileButton = new Button("New");
+        Button newFileButton = new Button("", new ImageView(new Image("/img/new.png", iconSize, iconSize, true, false)));
         newFileButton.setOnAction(actionEvent -> createNew());
+        newFileButton.setTooltip(new Tooltip("Create New Map"));
 
-        Button loadFileButton = new Button("Load");
+        Button loadFileButton = new Button("", new ImageView(new Image("/img/open.png", iconSize, iconSize, true, false)));
         loadFileButton.setOnAction(actionEvent -> loadFile());
+        loadFileButton.setTooltip(new Tooltip("Load File"));
 
-        Button saveButton = new Button("Save");
+        Button saveButton = new Button("", new ImageView(new Image("/img/save.png", iconSize, iconSize, true, false)));
         saveButton.setOnAction(event -> saveFile());
+        saveButton.setTooltip(new Tooltip("Save File"));
 
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, newFileButton);
         mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, loadFileButton);

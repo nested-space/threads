@@ -261,15 +261,19 @@ public class ProcessDisplay {
             return;
         }
 
-        VertexData selection = idToNodeMap.get(vertexId).vertexData;
+        VertexData vertexClicked = idToNodeMap.get(vertexId).vertexData;
         if (event.isShiftDown() && lastSelected != null) {
-            selectedVertices.setAll(findShortestPath(lastSelected, selection, vertices));
+            selectedVertices.setAll(findShortestPath(lastSelected, vertexClicked, vertices));
         } else if (event.isControlDown()) {
-            if (!selectedVertices.contains(selection)) selectedVertices.add(selection);
-            lastSelected = selection;
+            if (!selectedVertices.contains(vertexClicked)) {
+                selectedVertices.add(vertexClicked);
+                lastSelected = vertexClicked;
+            } else {
+                selectedVertices.remove(vertexClicked);
+            }
         } else {
-            selectedVertices.setAll(selection);
-            lastSelected = selection;
+            selectedVertices.setAll(vertexClicked);
+            lastSelected = vertexClicked;
         }
 
         selectedVertices.stream()
