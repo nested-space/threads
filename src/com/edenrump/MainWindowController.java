@@ -157,7 +157,7 @@ public class MainWindowController implements Initializable {
             file = new File(file.getAbsolutePath() + ".wool");
         }
 
-        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", vertexInfoInMemory), file);
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", processDisplay.getVertexInfo()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
