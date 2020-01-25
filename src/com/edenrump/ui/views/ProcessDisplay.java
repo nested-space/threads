@@ -22,12 +22,8 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.input.ContextMenuEvent;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
@@ -107,10 +103,6 @@ public class ProcessDisplay {
             timeForWindowToLoad.setOnFinished(event -> {
                 processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
                 processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
-                processDisplay.getScene().setOnKeyPressed(key -> {
-                    if (key.getCode() == KeyCode.DELETE && selectedVertices.size() == 1)
-                        removeVertex(selectedVertices.get(0));
-                });
             });
             timeForWindowToLoad.play();
         });
@@ -229,26 +221,7 @@ public class ProcessDisplay {
             lastSelected = vertexClicked;
         }
 
-        selectedVertices.stream()
-                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
-                .forEach(pane -> {
-                    pane.highlight();
-                    if (selectedVertices.size() == 1) {
-                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
-                    } else {
-                        pane.setOnContextMenuRequested(e -> {
-                            showContextMenu(pane, standardVertexContextMenu(pane.getId()), e);
-                        });
-                    }
-                });
-
-        idToNodeMap.values().stream().map(data -> data.vertexData) //all vertices
-                .filter(v -> !selectedVertices.contains(v))
-                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
-                .forEach(pane -> {
-                    pane.lowlight();
-                    pane.setOnContextMenuRequested(null);
-                });
+        highlightSelectedNodes();
 
         event.consume();
     }
@@ -345,6 +318,32 @@ public class ProcessDisplay {
             TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).displayNode;
             displayNode.resetHighlighting();
         }
+    }
+
+    /**
+     * Separate vertex nodes by selection. Highlight selected nodes. Lowlight unselected nodes.
+     */
+    private void highlightSelectedNodes() {
+        selectedVertices.stream()
+                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
+                .forEach(pane -> {
+                    pane.highlight();
+                    if (selectedVertices.size() == 1) {
+                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
+                    } else {
+                        pane.setOnContextMenuRequested(e -> {
+                            showContextMenu(pane, standardVertexContextMenu(pane.getId()), e);
+                        });
+                    }
+                });
+
+        idToNodeMap.values().stream().map(data -> data.vertexData) //all vertices
+                .filter(v -> !selectedVertices.contains(v))
+                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
+                .forEach(pane -> {
+                    pane.lowlight();
+                    pane.setOnContextMenuRequested(null);
+                });
     }
 
     /**
@@ -446,7 +445,7 @@ public class ProcessDisplay {
      *
      * @param toRemove
      */
-    private void removeVertex(VertexData toRemove) {
+    public void removeVertex(VertexData toRemove) {
         toBeRemovedOnNextPass.add(idToNodeMap.get(toRemove.getId()).displayNode);
         toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(idToNodeMap.get(toRemove.getId()).displayNode));
 
@@ -740,6 +739,38 @@ public class ProcessDisplay {
 
     public List<VertexData> getVertexInfo() {
         return idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList());
+    }
+
+    /**
+     * TODO: Determine whether there are unsaved changes in the program. If necessary, prompt user whether to discard changes
+     *
+     * @return whether it's OK to close the display
+     */
+    public boolean requestClose() {
+        return true;
+    }
+
+    public void deselectAll() {
+        selectedVertices.clear();
+        resetHighlightingOnAllNodes();
+    }
+
+    public void selectAll() {
+        selectedVertices.setAll(idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList()));
+        highlightSelectedNodes();
+    }
+
+    public void deleteSelected() {
+        if (selectedVertices.size() == 1) {
+            removeVertex(selectedVertices.get(0));
+        } else if (selectedVertices.size() > 1) {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Multiple vertex deletion");
+            alert.setHeaderText("Multiple vertices are selected");
+            alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
+            alert.showAndWait();
+            new ArrayList<>(selectedVertices).forEach(this::removeVertex);
+        }
     }
 
     /**

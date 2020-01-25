@@ -13,8 +13,8 @@ import com.edenrump.config.Defaults;
 import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
-import com.edenrump.ui.menu.Ribbon;
 import com.edenrump.ui.views.ProcessDisplay;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -22,9 +22,10 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -80,7 +81,7 @@ public class MainWindowController implements Initializable {
     private ObservableList<VertexData> selectedVertices = FXCollections.observableArrayList();
 
     /**
-     * Initial actions to load the ribbon of the display and start the user interaction process
+     * Initialise the application window
      */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
@@ -90,55 +91,59 @@ public class MainWindowController implements Initializable {
             c.next();
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             String[] names = new String[c.getList().size()];
-            for(int i=0; i<c.getList().size(); i++){
+            for (int i = 0; i < c.getList().size(); i++) {
                 names[i] = c.getList().get(i).getName();
             }
             setInfoPaneComments(names);
         });
-        loadRibbon(borderBase);
+        addMainMenu(borderBase);
         createNew();
+
+        Platform.runLater(() -> {
+            stage.getScene().setOnKeyPressed(key -> {
+                if (key.getCode() == KeyCode.DELETE){
+                    processDisplay.deleteSelected();
+                } else if(key.getCode() == KeyCode.ESCAPE){
+                    processDisplay.deselectAll();
+                } else if(key.getCode() == KeyCode.A && key.isControlDown()){
+                    processDisplay.selectAll();
+                }
+            });
+        });
     }
 
     /**
-     * User control ribbon
+     * The main menu for the application
      */
-    private Ribbon mRibbon = new Ribbon();
+    private MenuBar menu = new MenuBar();
 
     /**
-     * Method creates Ribbon node to facilitate user interaction and places it at top of BorderPane
+     * Method default menu for the application
      *
-     * @param borderPane BorderPane at the top of which ribbon is to be placed
+     * @param borderPane main display of the application
      */
-    private void loadRibbon(BorderPane borderPane) {
-        double iconSize = 16;
-        mRibbon.addModule(Defaults.LOAD_MODULE_NAME, false);
+    private void addMainMenu(BorderPane borderPane) {
+        menu.setMinHeight(25);
 
-        Button newFileButton = new Button("", new ImageView(new Image("/img/new.png", iconSize, iconSize, true, false)));
-        newFileButton.setOnAction(actionEvent -> createNew());
-        newFileButton.setTooltip(new Tooltip("Create New Map"));
+        Menu file = new Menu("_File");
 
-        Button loadFileButton = new Button("", new ImageView(new Image("/img/open.png", iconSize, iconSize, true, false)));
-        loadFileButton.setOnAction(actionEvent -> loadFile());
-        loadFileButton.setTooltip(new Tooltip("Load File"));
+        MenuItem newFile = new MenuItem("_New");
+        newFile.setOnAction(actionEvent -> createNew());
 
-        Button saveButton = new Button("", new ImageView(new Image("/img/save.png", iconSize, iconSize, true, false)));
-        saveButton.setOnAction(event -> saveFile());
-        saveButton.setTooltip(new Tooltip("Save File"));
+        MenuItem openFile = new MenuItem("_Open");
+        openFile.setOnAction(actionEvent -> loadFile());
 
-        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, newFileButton);
-        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, loadFileButton);
-        mRibbon.addControlToModule(Defaults.LOAD_MODULE_NAME, saveButton);
+        MenuItem saveFile = new MenuItem("_Save");
+        saveFile.setOnAction(event -> saveFile());
 
-        mRibbon.addModule("Test Buttons", true);
-
-        Button resolve = new Button("Resolve Display");
-        resolve.setOnAction(actionEvent -> {
-            processDisplay.reconcilePrepAndDisplay();
+        MenuItem close = new MenuItem("_Close");
+        close.setOnAction(event -> {
+            if (processDisplay.requestClose()) Platform.exit();
         });
 
-        mRibbon.addControlToModule("Test Buttons", resolve);
-
-        borderPane.setTop(mRibbon);
+        file.getItems().setAll(newFile, openFile, saveFile, close);
+        menu.getMenus().add(file);
+        borderPane.setTop(menu);
     }
 
     /**
@@ -162,7 +167,7 @@ public class MainWindowController implements Initializable {
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
         } else {
-            showFailureAlert("Save Failure",
+            showDialog(Alert.AlertType.ERROR,"Save Failure",
                     "Failed to save file",
                     "File name valid but a problem occurred saving the data to JSON format");
         }
@@ -209,22 +214,24 @@ public class MainWindowController implements Initializable {
 
     /**
      * Set the title of the infoPane as "Vertices: " + total + " (" + selected + ")"
-     * @param total the total number of vertices in the display
+     *
+     * @param total    the total number of vertices in the display
      * @param selected the total number of vertices selected
      */
-    private void setInfoPaneTitle(Integer total, Integer selected){
+    private void setInfoPaneTitle(Integer total, Integer selected) {
         infoPaneTitle.setText("Vertices: " + total + " (" + selected + ")");
     }
 
     /**
      * Set the comments in the info pane //TODO: replace with better vertex descriptions
+     *
      * @param comments the comments to be added
      */
-    private void setInfoPaneComments(String... comments){
+    private void setInfoPaneComments(String... comments) {
         commentPane.getChildren().clear();
-        if(comments.length==0) return;
+        if (comments.length == 0) return;
         commentPane.getChildren().addAll(new Separator(Orientation.HORIZONTAL));
-        for(String comment : comments){
+        for (String comment : comments) {
             Label label = new Label(comment);
             label.getStyleClass().add("comment-text");
             commentPane.getChildren().add(label);
@@ -234,12 +241,13 @@ public class MainWindowController implements Initializable {
 
     /**
      * Utility method. Create an alert and show it to the user
-     * @param windowTitle the window title of the alert
-     * @param headerText the text to include as the header text of the alert window
+     *
+     * @param windowTitle     the window title of the alert
+     * @param headerText      the text to include as the header text of the alert window
      * @param descriptionText the text to include as the description text of the alert
      */
-    private void showFailureAlert(String windowTitle, String headerText, String descriptionText) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
+    private void showDialog(Alert.AlertType type, String windowTitle, String headerText, String descriptionText) {
+        Alert alert = new Alert(type);
         alert.setTitle(windowTitle);
         alert.setHeaderText(headerText);
         alert.setContentText(descriptionText);
@@ -299,9 +307,10 @@ public class MainWindowController implements Initializable {
 
     /**
      * Create a new display with a standard set-up of vertices
+     *
      * @return the seed display
      */
-    private ThreadsData initialState(){
+    private ThreadsData initialState() {
         //Start up a new map
         VertexData startingNode = new VertexData("End Node", 0, 0);
         VertexData minusOne = new VertexData("n-1", 1, 0);
@@ -333,6 +342,7 @@ public class MainWindowController implements Initializable {
 
     /**
      * Set the Stage that holds the scene graph for this window. Useful for changing window titles..
+     *
      * @param stage the stage for this window
      */
     public void setStage(Stage stage) {
