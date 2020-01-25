@@ -22,68 +22,111 @@ public class VertexData implements Comparable<VertexData>{
     /**
      * List of upstream node ids
      */
-    private List<String> upstream;
-
+    private List<String> connectedVertices;
     /**
-     * List of downstream node ids
+     * The depth of the vertex in the graph
      */
-    private List<String> downstream;
-
+    private int depth;
+    /**
+     * The priority of the vertex in the graph
+     */
+    private int priority;
     /**
      * THe name of this node
      */
     private String name;
-
     /**
      * The id of this node
      */
     private String id;
 
+    /**
+     * Create VertexData fron a name and a random id
+     * @param name the name of the vertex
+     */
     public VertexData(String name){
         this(name, UUID.randomUUID().toString());
     }
 
-    public VertexData(String name, String id){
-        this(name, id, new ArrayList<>(), new ArrayList<>());
+    /**
+     * Create VertexData fron a name and a random id
+     * @param name the name of the vertex
+     * @param depth the depth of the vertex
+     * @param priority the priority of the vertex
+     */
+    public VertexData(String name, int depth, int priority){
+        this(name, UUID.randomUUID().toString(), new ArrayList<>(), depth, priority);
     }
 
-    public VertexData(String name, String id, List<String> us, List<String> ds){
+    /**
+     * Create VertexData from a name and given id
+     * @param name the name of the vertex
+     * @param id the id of the vertex
+     */
+    public VertexData(String name, String id){
+        this(name, id, new ArrayList<>(), 0, 0);
+    }
+
+    /**
+     * Create a VertexData object
+     * @param name the name of the vertex
+     * @param id the id of the vertex
+     * @param connected a list of connected vertices by id
+     */
+    public VertexData(String name, String id, List<String> connected, int depth, int priority){
         this.name = name;
         this.id = id;
-        this.upstream = us;
-        this.downstream = ds;
+        this.connectedVertices = connected;
+        this.depth = depth;
+        this.priority = priority;
+    }
+
+    /**
+     * Return the depth of the node in the graph
+     * @return the depth of the node
+     */
+    public int getDepth() {
+        return depth;
+    }
+
+    /**
+     * Set the depth of the node in the graph
+     * @param depth depth of the node in the graph
+     */
+    public void setDepth(int depth) {
+        this.depth = depth;
+    }
+
+    /**
+     * Get the priority of the vertex
+     * @return the priority of the vertex
+     */
+    public int getPriority() {
+        return priority;
+    }
+
+    /**
+     * Set the priority of the vertex.
+     * @param priority the priority value
+     */
+    public void setPriority(int priority) {
+        this.priority = priority;
     }
 
     /**
      * Return the ids of the upstream nodes
      * @return list of ids
      */
-    public List<String> getUpstream() {
-        return upstream;
+    public List<String> getConnectedVertices() {
+        return connectedVertices;
     }
 
     /**
      * Add an integer id to the list of upstream nodes
      * @param upstream the id of the node to be added
      */
-    public void addUpstream(String upstream) {
-        this.upstream.add(upstream);
-    }
-
-    /**
-     * Return the ids of the downstream nodes
-     * @return list of ids
-     */
-    public List<String> getDownstream() {
-        return downstream;
-    }
-
-    /**
-     * Add an integer id to the list of downstream nodes
-     * @param downstream the id of the node to be added
-     */
-    public void addDownstream(String downstream) {
-        this.downstream.add(downstream);
+    public void addConnection(String upstream) {
+        this.connectedVertices.add(upstream);
     }
 
     /**

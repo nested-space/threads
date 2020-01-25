@@ -23,6 +23,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ContextMenuEvent;
@@ -56,10 +57,6 @@ public class ProcessDisplay {
      * Anchorpane at the front of the display in which real nodes are placed
      */
     public AnchorPane displayOverlay = new AnchorPane();
-    /**
-     * A map of node depth to node data
-     */
-    private Map<Integer, List<VertexData>> nodeDepthMap = new HashMap<>();
     /**
      * A map of node containers to info nodes
      */
@@ -134,82 +131,28 @@ public class ProcessDisplay {
     }
 
     /**
-     * Collect the nodes with no downstream linkages. Return these as a list.
-     *
-     * @param vertexDataList the entire list of nodes to be parsed
-     * @return a list of nodes with no downstream linkages
-     */
-    private List<VertexData> findDownsteamLeaves(List<VertexData> vertexDataList) {
-        List<VertexData> leaves = new ArrayList<>();
-        for (VertexData ed : vertexDataList) {
-            if (ed.getDownstream().size() == 0) leaves.add(ed);
-        }
-        return leaves;
-    }
-
-    /**
-     * Create node positions from the node map currently in memory
-     *
-     * @return a positional map of containers and nodes
-     */
-    private Map<Integer, List<VertexData>> createNodeMapping(List<VertexData> nodeInfo) {
-        List<VertexData> liveNodes = new ArrayList<>(nodeInfo);
-        Map<Integer, List<VertexData>> nodeMap = new HashMap<>();
-
-        int depth = 0;
-        nodeMap.put(depth, findDownsteamLeaves(nodeInfo));
-        liveNodes.removeAll(nodeMap.get(depth++));
-
-        while (liveNodes.size() > 0) {
-            List<VertexData> nodesAtCurrentDepth = new ArrayList<>();
-            List<VertexData> nodesAtDepthAbove = new ArrayList<>(nodeMap.get(depth - 1));
-            for (VertexData ed : liveNodes) {
-                if (linksToDownstreamNode(ed, nodesAtDepthAbove)) {
-                    nodesAtCurrentDepth.add(ed);
-                }
-            }
-            liveNodes.removeAll(nodesAtCurrentDepth);
-            nodeMap.put(depth++, nodesAtCurrentDepth);
-        }
-        return nodeMap;
-    }
-
-    /**
-     * Return whether the edge data (ed) has a direct upstream link to the node list provided.
-     *
-     * @param ed                the edge data
-     * @param nodesAtDepthAbove the nodes against which to test upstream linkage
-     * @return whether the edge data is linked directly to the node list. Upstream only.
-     */
-    private boolean linksToDownstreamNode(VertexData ed, List<VertexData> nodesAtDepthAbove) {
-        for (VertexData downstream : nodesAtDepthAbove) {
-            for (String dsID : downstream.getUpstream()) {
-                if (dsID.equals(ed.getId())) return true;
-            }
-        }
-        return false;
-
-    }
-
-    /**
      * For each level of depth in the map provided, create a container node. For each vertex within the nested map,
      * create a display node and add it to the container. Return a map of depths to containers
      *
      * @return a map of depth level to container nodes
      */
-    private PreparationDisplayMaps createNodeDisplay(Map<Integer, List<VertexData>> nodeDepthMap) {
+    private PreparationDisplayMaps createNodeDisplay(List<VertexData> vertices) {
         PreparationDisplayMaps pdm = new PreparationDisplayMaps();
-
-        for (int depth = 0; depth < nodeDepthMap.keySet().size(); depth++) {
-            VBox container = getStyledContainer();
-            for (VertexData data : nodeDepthMap.get(depth)) {
-                DataAndNodes nodeData = createNodes(data, depth);
-                container.getChildren().add(nodeData.preparationNode);
-                pdm.idNodeMap.put(data.getId(), nodeData);
-                pdm.prepToDisplay.put(nodeData.preparationNode, nodeData.displayNode);
-            }
-            pdm.depthToPrepcontainer.put(depth, container);
-        }
+        vertices.stream()
+                .map(VertexData::getDepth)
+                .distinct()
+                .forEach(depth -> {
+                    List<Node> prepNodes = new ArrayList<>();
+                    vertices.stream()
+                            .filter(v -> v.getDepth() == depth)
+                            .forEach(vertexData -> {
+                                DataAndNodes nodeData = createNodes(vertexData);
+                                prepNodes.add(nodeData.preparationNode);
+                                pdm.idNodeMap.put(vertexData.getId(), nodeData);
+                                pdm.prepToDisplay.put(nodeData.preparationNode, nodeData.displayNode);
+                            });
+                    pdm.depthToPrepcontainer.put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
+                });
         return pdm;
     }
 
@@ -217,11 +160,10 @@ public class ProcessDisplay {
      * Create a DataAndNodes construct linking vertex data with nodes in the scene graph
      * for a given VD and depth
      *
-     * @param data  the vertex data
-     * @param depth the graph depth of the vertex
+     * @param data the vertex data
      * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
      */
-    private DataAndNodes createNodes(VertexData data, Integer depth) {
+    private DataAndNodes createNodes(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = new TitledContentPane();
         prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
@@ -240,7 +182,7 @@ public class ProcessDisplay {
             selectVertex(data.getId(), event);
         });
 
-        return new DataAndNodes(data, prepNode, displayNode, depth);
+        return new DataAndNodes(data, prepNode, displayNode);
     }
 
     /**
@@ -353,11 +295,7 @@ public class ProcessDisplay {
             visited.add(currentItem);
             priorityQueue.remove(currentItem);
 
-            //add adjacent nodes to a visit next list
-            String[] adjacentVertices = new String[currentItem.vertex.getDownstream().size() + currentItem.vertex.getUpstream().size()];
-            System.arraycopy(currentItem.vertex.getDownstream().toArray(), 0, adjacentVertices, 0, currentItem.vertex.getDownstream().size());
-            System.arraycopy(currentItem.vertex.getUpstream().toArray(), 0, adjacentVertices, currentItem.vertex.getDownstream().size(), currentItem.vertex.getUpstream().size());
-            for (String id : adjacentVertices) {
+            for (String id : currentItem.vertex.getConnectedVertices()) {
                 PriorityItem adjacentItem = idPriorityItemMap.get(id);
                 if (visited.contains(adjacentItem)) continue; //don't go back to nodes already visited
                 if ((currentItem.distance + 1) < adjacentItem.distance) {
@@ -409,30 +347,24 @@ public class ProcessDisplay {
 
         MenuItem addDownstream = new MenuItem("Add Downstream Node");
         addDownstream.setOnAction(event -> {
-            int depth = idToNodeMap.getOrDefault(id, new DataAndNodes(null, null, null, -1500)).depth;
-            if (depth != -1500) {
-                VertexData vdNew = new VertexData("New Node");
-                vdNew.addUpstream(id);
-                for (VertexData vdSource : vertices) {
-                    if (vdSource.getId().equals(id)) vdSource.addDownstream(vdNew.getId());
-                }
-                addNode(vdNew, depth - 1, id, Side.RIGHT);
-
+            int depth = idToNodeMap.get(id).vertexData.getDepth();
+            VertexData vdNew = new VertexData("New Node", depth - 1, 0);
+            vdNew.addConnection(id);
+            for (VertexData vdSource : vertices) {
+                if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
             }
+            addNode(vdNew, depth - 1, id, Side.RIGHT);
         });
 
         MenuItem addUpstream = new MenuItem("Add Upstream Node");
         addUpstream.setOnAction(event -> {
-            int depth = idToNodeMap.getOrDefault(id, new DataAndNodes(null, null, null, -1500)).depth;
-            if (depth != -1500) {
-                VertexData vdNew = new VertexData("New Node");
-                vdNew.addDownstream(id);
-                for (VertexData vdSource : vertices) {
-                    if (vdSource.getId().equals(id)) vdSource.addUpstream(vdNew.getId());
-                }
-                addNode(vdNew, depth + 1, id, Side.LEFT);
-
+            int depth = idToNodeMap.get(id).vertexData.getDepth();
+            VertexData vdNew = new VertexData("New Node", depth + 1, 0);
+            vdNew.addConnection(id);
+            for (VertexData vdSource : vertices) {
+                if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
             }
+            addNode(vdNew, depth + 1, id, Side.LEFT);
         });
 
         cm.getItems().addAll(addDownstream, addUpstream);
@@ -464,13 +396,12 @@ public class ProcessDisplay {
      * @param newNodeSide       the relative position (left or right) of the new vertex with respect to the source vertex
      */
     private void addNode(VertexData newNodeVertexData, int newNodeDepth, String sourceVertexId, Side newNodeSide) {
-        DataAndNodes newNodeData = createNodes(newNodeVertexData, newNodeDepth);
+        DataAndNodes newNodeData = createNodes(newNodeVertexData);
         Pane container = (Pane) depthToPrepContainerMap.get(newNodeDepth);
 
         if (container == null) {
-            container = getStyledContainer();
-            depthToPrepContainerMap.put(newNodeDepth, container);
-            resetPreparationContainerOrders();
+            depthToPrepContainerMap.put(newNodeDepth, createPrepColumn(new ArrayList<>(), "Depth: "+ newNodeDepth));
+            resetPreparationDisplay();
         }
 
         container.getChildren().add(newNodeData.preparationNode);
@@ -513,12 +444,30 @@ public class ProcessDisplay {
      * @param vertexDataList the entire list of nodes to be parsed
      * @return a list of nodes with no upstream linkages
      */
-    private List<VertexData> findUpstreamLeaves(List<VertexData> vertexDataList) {
-        List<VertexData> leaves = new ArrayList<>();
-        for (VertexData ed : vertexDataList) {
-            if (ed.getUpstream().size() == 0) leaves.add(ed);
-        }
-        return leaves;
+    private List<VertexData> getUpstreamLeaves(List<VertexData> vertexDataList) {
+        return vertexDataList
+                .stream()
+                .filter(v -> v.getDepth() == Collections.max(vertexDataList
+                        .stream()
+                        .map(VertexData::getDepth)
+                        .collect(Collectors.toList())))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Determine the minimum depth of the graph. Return a list of vertices with the determined depth.
+     *
+     * @param vertexDataList the entire list of nodes to be parsed
+     * @return a list of nodes at the minimum depth of the map
+     */
+    private List<VertexData> getDownstreamLeaves(List<VertexData> vertexDataList) {
+        return vertexDataList
+                .stream()
+                .filter(v -> v.getDepth() == Collections.min(vertexDataList
+                        .stream()
+                        .map(VertexData::getDepth)
+                        .collect(Collectors.toList())))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -580,20 +529,50 @@ public class ProcessDisplay {
     /**
      * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
      */
-    private void resetPreparationContainerOrders() {
+    private void resetPreparationDisplay() {
         preparationContainer.getChildren().clear();
-        for (Object key : new LinkedList<>(depthToPrepContainerMap.keySet()).stream()
-                .sorted(Comparator.reverseOrder())
-                .collect(Collectors.toList())) {
-            if (key instanceof Integer) {
-                preparationContainer.getChildren().add(depthToPrepContainerMap.get(key));
-            }
+        depthToPrepContainerMap.clear();
 
-        }
+        vertices.stream()
+                .map(VertexData::getDepth)
+                .distinct()
+                .collect(Collectors.toList())
+                .forEach(depth -> {
+                    List<Node> prepNodes = new ArrayList<>();
+                    idToNodeMap.values().stream()
+                            .filter(v -> v.vertexData.getDepth() == depth)
+                            .forEach(dn -> prepNodes.add(dn.preparationNode));
+
+                    depthToPrepContainerMap
+                            .put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
+                });
+
+        depthToPrepContainerMap.keySet().stream()
+                .sorted(Comparator.reverseOrder())
+                .forEach(depth -> preparationContainer.getChildren().add(depthToPrepContainerMap.get(depth)));
     }
 
     /**
-     * Calculate the positions of vertices and re-create edges for the display based on data in the "vertices" list
+     * Utility method to create a consistent column in the preparation display TODO: link prep title with real display title
+     * @param prepNodes the nodes to be added to the column
+     * @param title the title of the column
+     * @return a consistently-styled VBox for use in the preparation display.
+     */
+    private VBox createPrepColumn(List<Node> prepNodes, String title) {
+        VBox container = new VBox();
+        container.setAlignment(Pos.TOP_CENTER);
+        container.setSpacing(25);
+        VBox head = new VBox(new Label(title));
+        VBox body = new VBox();
+        body.setSpacing(35);
+        body.setAlignment(Pos.TOP_CENTER);
+        prepNodes.forEach(node -> body.getChildren().add(node));
+        container.getChildren().addAll(head, body);
+        return container;
+    }
+
+    /**
+     * Calculate the positions of vertices and re-create edges for the display based on data in the vertices list
      */
     private void recastDisplayFromCachedData() {
         clearNodes();
@@ -601,22 +580,31 @@ public class ProcessDisplay {
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
         //Load the preparation container with nodes
-        resetPreparationContainerOrders();
+        resetPreparationDisplay();
 
         //add edges
-        List<VertexData> unvisitedNodes = findUpstreamLeaves(vertices);
+        List<VertexData> unvisitedNodes = getUpstreamLeaves(vertices);
+        List<String> visitedNodes = new ArrayList<>();
         while (unvisitedNodes.size() > 0) {
-            VertexData vd = unvisitedNodes.remove(0);
-            for (String id : vd.getDownstream()) unvisitedNodes.add(idToNodeMap.get(id).vertexData);
+            VertexData currentVertex = unvisitedNodes.remove(0);
+            visitedNodes.add(currentVertex.getId());
 
-            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(vd.getId()).displayNode;
-            for (String id : vd.getDownstream()) {
-                TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(id).displayNode;
-                Node edge = createEdge(dStart, dEnd);
-                edge.setOpacity(0);
-                edges.add(edge);
-                displayOverlay.getChildren().add(0, edge);
-            }
+            currentVertex.getConnectedVertices().stream()
+                    .filter(id -> !visitedNodes.contains(id))
+                    .forEach(id -> unvisitedNodes.add(idToNodeMap.get(id).vertexData));
+
+            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(currentVertex.getId()).displayNode;
+            currentVertex.getConnectedVertices().stream()
+                    .map(id -> idToNodeMap.get(id).vertexData)
+                    .filter(endVertex -> endVertex.getDepth() < currentVertex.getDepth())
+                    .forEach(endVertex -> {
+                        TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(endVertex.getId()).displayNode;
+                        Node edge = createEdge(dStart, dEnd);
+                        edge.setOpacity(0);
+                        edges.add(edge);
+                        displayOverlay.getChildren().add(0, edge);
+
+                    });
         }
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
@@ -633,7 +621,6 @@ public class ProcessDisplay {
             });
             t.playFromStart();
         });
-
     }
 
     /**
@@ -659,21 +646,6 @@ public class ProcessDisplay {
         vertices.clear();
         edges.clear();
         preparationDisplayMap.clear();
-        nodeDepthMap.clear();
-    }
-
-    /**
-     * Return a Parent node with styles pre-added. Useful for prototyping but should eventually be accomplished
-     * but stylesheets
-     *
-     * @return a styled VBox
-     */
-    private VBox getStyledContainer() {
-        VBox container = new VBox();
-        container.setAlignment(Pos.CENTER);
-        container.setStyle("-fx-background-color: blue");
-        container.setSpacing(50);
-        return container;
     }
 
     /**
@@ -683,8 +655,7 @@ public class ProcessDisplay {
      */
     public void create(List<VertexData> vertices) {
         this.vertices = vertices;
-        nodeDepthMap = createNodeMapping(vertices);
-        PreparationDisplayMaps pdm = createNodeDisplay(nodeDepthMap);
+        PreparationDisplayMaps pdm = createNodeDisplay(vertices);
         idToNodeMap = pdm.idNodeMap;
         depthToPrepContainerMap = pdm.depthToPrepcontainer;
         preparationDisplayMap = pdm.prepToDisplay;
@@ -736,19 +707,17 @@ public class ProcessDisplay {
      * living node in the scene graph.
      */
     private class DataAndNodes {
-        int depth;
         VertexData vertexData;
         Node preparationNode;
         Node displayNode;
 
-        DataAndNodes(VertexData vd, Node p, Node d, int depth) {
-            this.depth = depth;
+        DataAndNodes(VertexData vd, Node p, Node d) {
             this.vertexData = vd;
             this.preparationNode = p;
             this.displayNode = d;
         }
     }
-    
+
     /**
      * Class representing an item in the priority queue of a Dijkstra's shortest-path calculation.
      */

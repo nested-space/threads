@@ -20,13 +20,11 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -305,18 +303,18 @@ public class MainWindowController implements Initializable {
      */
     private ThreadsData initialState(){
         //Start up a new map
-        VertexData startingNode = new VertexData("End Node");
-        VertexData minusOne = new VertexData("n-1");
-        VertexData minusTwo = new VertexData("n-2");
-        VertexData minusTwoA = new VertexData("n-2a");
+        VertexData startingNode = new VertexData("End Node", 0, 0);
+        VertexData minusOne = new VertexData("n-1", 1, 0);
+        VertexData minusTwo = new VertexData("n-2", 2, 0);
+        VertexData minusTwoA = new VertexData("n-2a", 2, 0);
 
-        minusOne.addDownstream(startingNode.getId());
-        minusTwo.addDownstream((minusOne.getId()));
-        minusTwoA.addDownstream((minusOne.getId()));
+        minusOne.addConnection(startingNode.getId());
+        minusTwo.addConnection((minusOne.getId()));
+        minusTwoA.addConnection((minusOne.getId()));
 
-        startingNode.addUpstream(minusOne.getId());
-        minusOne.addUpstream((minusTwo.getId()));
-        minusOne.addUpstream((minusTwoA.getId()));
+        startingNode.addConnection(minusOne.getId());
+        minusOne.addConnection((minusTwo.getId()));
+        minusOne.addConnection((minusTwoA.getId()));
 
         return new ThreadsData("New File", UUID.randomUUID().toString(), Arrays.asList(
                 startingNode, minusOne, minusTwo, minusTwoA));
