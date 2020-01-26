@@ -13,26 +13,29 @@
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.HBox?>
 <BorderPane fx:id="borderBase" fx:controller="com.edenrump.MainWindowController"
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>
-        <SplitPane orientation="VERTICAL" dividerPositions="0.65">
-            <ScrollPane fx:id="displayWrapper"/>
+        <SplitPane dividerPositions="0.25">
             <ScrollPane styleClass="info-wrapper" fitToHeight="true" fitToWidth="true">
-                <VBox fx:id="infoPane" styleClass="infoPane">
+                <VBox fx:id="infoPane" styleClass="infoPane" spacing="10">
                     <padding>
-                        <Insets topRightBottomLeft="10"/>
+                        <Insets top="10" bottom="10"/>
                     </padding>
-                    <Label fx:id="infoPaneTitle" styleClass="big-text"/>
-                    <VBox fx:id="commentPane" spacing="10">
+                    <HBox>
+                        <Label fx:id="infoPaneTitle" styleClass="big-text"/>
                         <padding>
-                            <Insets top="10" bottom="25"/>
+                            <Insets left="10"/>
                         </padding>
-                    </VBox>
+                    </HBox>
+                    <Separator/>
+                    <VBox fx:id="commentPane" spacing="10"/>
                 </VBox>
             </ScrollPane>
+            <ScrollPane fx:id="displayWrapper"/>
         </SplitPane>
     </center>
     <right>

@@ -35,17 +35,18 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
+
 import static com.edenrump.config.Defaults.DELAY_TIME;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ProcessDisplay {
+public class DepthOrderedLinkMapDisplay {
 
     /**
      * Scrollpane that encapsulates all process preparation and display containers.
      */
-    public ScrollPane processDisplay;
+    public ScrollPane linkMapDisplay;
     /**
      * Container in the background of the display that deals with position of nodes
      * <p>
@@ -97,22 +98,22 @@ public class ProcessDisplay {
      *
      * @param display the pane on which the processdisplay should be rendered
      */
-    public ProcessDisplay(ScrollPane display) {
-        processDisplay = display;
+    public DepthOrderedLinkMapDisplay(ScrollPane display) {
+        linkMapDisplay = display;
         display.setPannable(true);
-        processDisplay.setFitToHeight(true);
-        processDisplay.setFitToWidth(true);
+        linkMapDisplay.setFitToHeight(true);
+        linkMapDisplay.setFitToWidth(true);
         Platform.runLater(() -> {
             PauseTransition timeForWindowToLoad = new PauseTransition(Duration.seconds(2));
             timeForWindowToLoad.setOnFinished(event -> {
-                processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(()-> reconcilePrepAndDisplay(1)));
-                processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(()-> reconcilePrepAndDisplay(1)));
+                linkMapDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(() -> reconcilePrepAndDisplay(1)));
+                linkMapDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(() -> reconcilePrepAndDisplay(1)));
             });
             timeForWindowToLoad.play();
         });
 
         StackPane prepDisplayStack = new StackPane();
-        processDisplay.setContent(prepDisplayStack);
+        linkMapDisplay.setContent(prepDisplayStack);
         prepDisplayStack.getChildren().addAll(displayOverlay, preparationContainer);
 
         displayOverlay.setOnMouseClicked(event -> {
@@ -182,12 +183,14 @@ public class ProcessDisplay {
     private DataAndNodes createNodes(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
+        if (data.getHyperlinkURL() != null) prepNode.addTag("url", data.getHyperlinkURL().toLowerCase());
 
         //Create node for display overlay
         TitledContentPane displayNode = convertDataToNode(data);
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
         displayNode.setId(data.getId());
+        if (!data.getHyperlinkURL().equals("")) displayNode.addTag("url", data.getHyperlinkURL());
         displayNode.setOnContextMenuRequested(event -> {
             showContextMenu(displayNode, standardVertexContextMenu(data.getId()), event);
             event.consume();
@@ -199,12 +202,13 @@ public class ProcessDisplay {
 
     /**
      * Utility method. Ensure vertex data is consistenly translated into a dispay object
+     *
      * @param v the vertex to display
      * @return a consistent node to display on the scene graph
      */
     private TitledContentPane convertDataToNode(VertexData v) {
         TitledContentPane node = new TitledContentPane();
-        node.addHeaderBox(v.getName(), v.getId(), Color.ALICEBLUE);
+        node.addHeaderBox(v.getName(), v.getId(), Color.web("#D1DBE3"));
         return node;
     }
 
@@ -529,7 +533,8 @@ public class ProcessDisplay {
 
     /**
      * Update the display nodes. If depth has changed, reset the preparation display. Update the vertex data
-     * @param id the id of the vertex to update
+     *
+     * @param id     the id of the vertex to update
      * @param vertex the vertexData object containing the updated information
      */
     public void updateVertex(String id, VertexData vertex) {
@@ -542,12 +547,26 @@ public class ProcessDisplay {
         } else {
             idToNodeMap.get(id).vertexData.update(vertex);
         }
+        Platform.runLater(() -> {
+            PauseTransition pause = new PauseTransition(Duration.millis(100));
+            pause.setOnFinished(e -> reconcilePrepAndDisplay(1));
+            pause.play();
+        });
     }
 
     private void updateNode(Node n, VertexData v) {
         if (n instanceof TitledContentPane) {
             TitledContentPane tcp = (TitledContentPane) n;
             tcp.setTitle(v.getName());
+            if (!v.getHyperlinkURL().equals("")) {
+                if (!tcp.hasTag("url")) {
+                    tcp.addTag("url", v.getHyperlinkURL());
+                } else {
+                    tcp.updateTag("url", v.getHyperlinkURL());
+                }
+            } else {
+                if (tcp.hasTag("url")) tcp.removeTag("url");
+            }
         }
     }
 
@@ -634,13 +653,13 @@ public class ProcessDisplay {
     /**
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
-    public void reconcilePrepAndDisplay(double delay) {
+    public void reconcilePrepAndDisplay(double animationLength) {
         Timeline all = new Timeline(30);
 
         for (Node node : toBeRemovedOnNextPass) {
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(node.opacityProperty(), node.getOpacity())),
-                    new KeyFrame(Duration.millis(delay), new KeyValue(node.opacityProperty(), 0))
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(node.opacityProperty(), 0))
             );
         }
 
@@ -648,12 +667,12 @@ public class ProcessDisplay {
             if (displayNode.getOpacity() == 0) {
                 all.getKeyFrames().addAll(
                         new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
-                        new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.opacityProperty(), 1)));
+                        new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.opacityProperty(), 1)));
                 if (displayNode instanceof TitledContentPane) {
                     TitledContentPane d = (TitledContentPane) displayNode;
                     all.getKeyFrames().addAll(
                             new KeyFrame(Duration.millis(0), new KeyValue(d.translateYProperty(), -12)),
-                            new KeyFrame(Duration.millis(delay), new KeyValue(d.translateYProperty(), 0)));
+                            new KeyFrame(Duration.millis(animationLength), new KeyValue(d.translateYProperty(), 0)));
                 }
             }
         }
@@ -661,12 +680,11 @@ public class ProcessDisplay {
         for (Node prepNode : preparationDisplayMap.keySet()) {
             Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new TitledContentPane());
 
-
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
-                    new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
-                    new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
         }
         all.setOnFinished(event -> {
             displayOverlay.getChildren().removeAll(toBeRemovedOnNextPass);

@@ -54,8 +54,8 @@ public class TitledRectangle extends StackPane {
      */
     TitledRectangle(String title, String id) {
         setId(id);
-        setLayout();
         setText(title);
+        setLayout();
     }
 
     /**
@@ -102,16 +102,16 @@ public class TitledRectangle extends StackPane {
      */
     private void setLayout() {
         //set up background
-        double DEFAULT_HEIGHT = 50;
-        double DEFAULT_WIDTH = 100;
+        double DEFAULT_HEIGHT = 27;
+        double DEFAULT_WIDTH = 150;
         mBackgroundRectangle = new Rectangle(DEFAULT_WIDTH, DEFAULT_HEIGHT, Color.TRANSPARENT);
         mBackgroundRectangle.setArcHeight(DEFAULT_HEIGHT / 2);
         mBackgroundRectangle.setArcWidth(DEFAULT_HEIGHT / 2);
 
         //set up label
-        mLabel.setPadding(new Insets(0, 5, 0, 10));
+        mLabel.setPadding(new Insets(0, 0, 0, 10));
         mLabel.setWrapText(true);
-        mLabel.setPrefWidth(90);
+        mLabel.setPrefWidth(150);
         mLabel.setTextAlignment(TextAlignment.CENTER);
 
         //add children

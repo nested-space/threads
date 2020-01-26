@@ -58,7 +58,9 @@ public class TitledContentPane extends VBox {
      */
     public TitledContentPane() {
         super();
-        setUpLayout();
+        setBackground(new Background(new BackgroundFill(Color.web("#D1DBE3"), CornerRadii.EMPTY, Insets.EMPTY)));
+        titlePane.setTextAlignment(Pos.CENTER);
+        getChildren().addAll(titlePane, image, tagContainer);
         resetHighlighting();
     }
 
@@ -136,27 +138,32 @@ public class TitledContentPane extends VBox {
     /**
      * Method to add named rectangle containing text to HolderRectangle.
      *
-     * @param name       text to be displayed on child NamedRectangle
+     * @param tagText       text to be displayed on child NamedRectangle
      * @param id identifier - used for retrieving later.
      */
-    public void addTag(String name, String id) {
-        TitledRectangle child = new TitledRectangle(name, id);
+    public void addTag(String id, String tagText) {
+        if(idNodeMap.containsKey(id)) return;
+        TitledRectangle child = new TitledRectangle(tagText, id);
+        child.setTextAlignment(Pos.CENTER_LEFT);
         idNodeMap.put(id, child);
         tagContainer.getChildren().add(child);
+    }
+
+    public boolean hasTag(String id){
+        return idNodeMap.containsKey(id);
+    }
+
+    public void removeTag(String id) {
+        tagContainer.getChildren().remove(idNodeMap.get(id));
+        idNodeMap.remove(id);
     }
 
     public void setTagColor(String id, Color color) {
         idNodeMap.get(id).setColor(color);
     }
 
-    /**
-     * Organise the elements of the holder.
-     */
-    private void setUpLayout() {
-        setSpacing(2);
-        setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY)));
-        titlePane.setTextAlignment(Pos.CENTER);
-        getChildren().addAll(titlePane, image, tagContainer);
+    public void updateTag(String id, String text){
+        idNodeMap.get(id).setText(text);
     }
 
     /**

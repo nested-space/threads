@@ -27,6 +27,20 @@
     -fx-disabled: derive(-fx-platinum-color, 90%);
 
     -fx-menu-background: #EBEFEE;
+    -fx-focus-color: transparent;
+    -fx-faint-focus-color: transparent;
+
+}
+
+.button {
+    -fx-background-color:
+        #3c7fb1,
+        linear-gradient(#E8EDF1 0%, #7492AB 100%);
+    -fx-background-insets: 1, 2, 3;
+    -fx-background-radius: 0;
+    -fx-padding: 3 15 3 15;
+    -fx-text-fill: black;
+    -fx-font-size: 14px;
 }
 
 .label{
@@ -35,11 +49,6 @@
 
 .borderPane{
     -fx-background-color: -fx-window-highlight;
-}
-
-.info-wrapper {
-    -fx-border-color: -fx-navy-color;
-    -fx-border-width: 2px;
 }
 
 .title-pane {
@@ -73,14 +82,176 @@
     -fx-font-weight: bold;
 }
 
-.comment-text{
-    -fx-font-weight: bold;
-    -fx-text-fill: -fx-disabled;
+.info-wrapper > .viewport {
+    -fx-background-color: #CCD7E0;
 }
 
+.info-wrapper {
+    -fx-border-width: 0 1px 0 0;
+    -fx-border-color: -fx-navy-color;
+}
+
+.scroll-pane, .split-pane {
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.scroll-pane:focused {
+    -fx-background-insets: 0;
+}
+
+.scroll-pane .corner {
+    -fx-background-insets: 0;
+}
+.scroll-pane {
+    -fx-background-color: #CCD7E0;
+}
+
+.scroll-bar {
+    -fx-font-size: 8px;
+}
+
+.scroll-bar:horizontal, .scroll-bar:vertical{
+    -fx-background-color:transparent;
+}
+
+.increment-button, .decrement-button {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar:horizontal .track,
+.scroll-bar:vertical .track{
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0em;
+}
+
+.scroll-bar:horizontal .thumb,
+.scroll-bar:vertical .thumb {
+    -fx-background-color: derive(-fx-window-highlight, 35%);
+    -fx-background-radius: 0em;
+}
+
+.scroll-bar:horizontal .thumb:hover,
+.scroll-bar:vertical .thumb:hover {
+    -fx-background-color: derive(-fx-window-highlight, 50%);
+    -fx-background-radius: 0em;
+}
 
 .separator *.line {
     -fx-border-style: solid;
     -fx-border-width: 0.5;
     -fx-border-color: #003865;
+}
+
+/*TOOLTIPS*/
+
+.tooltip {
+    -fx-background: #003865;
+    -fx-text-fill: white;
+    -fx-background-color: #003865;
+    -fx-background-radius: 2px;
+    -fx-background-insets: 0;
+    -fx-padding: 0.2em 0.5em 0.2em 0.5em; /* 10px */
+    -fx-effect: dropshadow( three-pass-box , rgba(0,0,0,0.5) , 10, 0.0 , 0 , 3 );
+    -fx-font-size: 0.85em;
+}
+
+/*CONTEXT MENU STYLING*/
+
+.menu {
+    -fx-padding: 0.1em 0.666667em 0.1em 0.666667em; /* 4 8 4 8 */
+}
+
+.menu-bar {
+    -fx-background-color: derive(-fx-navy-color, 50%);
+}
+
+.menu .label {
+    -fx-text-fill: white;
+}
+
+.context-menu{
+    -fx-background-color: -fx-menu-background;
+    -fx-background-radius:0;
+    -fx-padding:0;
+}
+
+.context-menu .separator:horizontal {
+    -fx-border-insets: 2 5 2 5;
+    -fx-border-width:0 0 6 0;
+}
+
+.menu-item{
+    -fx-background-color: #CCD7E0;
+    -fx-background-radius: 0;
+    -fx-background-insets:0;
+    -fx-padding: 0em 0.5em 0em 0.5em; /* 10px */
+    -fx-font-size: 0.9em;
+}
+
+.label,
+.menu-item .label {
+    -fx-text-fill: -fx-navy-color;
+    -fx-padding:3;
+}
+
+.menu-item:focused{
+  -fx-background-color: derive(-fx-navy-color,10%);
+}
+
+.menu-item:focused .label {
+    -fx-text-fill:#FFFFFF;
+}
+
+/*LABELS*/
+
+#postit-title-label{
+    -fx-text-fill: white;
+	-fx-font-weight: bold ;
+	-fx-font-size: 15;
+}
+
+#wip-label{
+    -fx-text-fill: white;
+	-fx-font-weight: bold ;
+	-fx-font-size: 11 pt;
+}
+
+#scene-title-label{
+    -fx-font-size: 1.5em;
+    -fx-text-fill:-fx-mulberry-color;
+    -fx-alignment: center-left;
+}
+
+#subTitleLabel{
+    -fx-font-size: 1.2em;
+    -fx-text-fill:-fx-navy-color;
+    -fx-alignment: center;
+}
+
+
+/*CHOICE ELEMENTS*/
+.combo-box{
+-fx-min-width: 200;
+}
+
+.text-area {
+-fx-pref-height:100;
+-fx-border-color:-fx-navy-color;
+}
+
+.text-area .scroll-bar:vertical,
+.text-area .scroll-bar:horizontal {
+    -fx-opacity: 0;
+    -fx-padding:-15;
+}
+
+.text-field {
+-fx-border-color:-fx-navy-color;
+}
+
+.background-section {
+-fx-background-color: -fx-lightblue-background-color;
 }

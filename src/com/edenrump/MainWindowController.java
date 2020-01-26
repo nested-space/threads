@@ -13,18 +13,21 @@ import com.edenrump.config.Defaults;
 import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
-import com.edenrump.views.ProcessDisplay;
+import com.edenrump.views.DepthOrderedLinkMapDisplay;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -58,7 +61,7 @@ public class MainWindowController implements Initializable {
     /**
      * the display pane of the process.
      */
-    private ProcessDisplay processDisplay;
+    private DepthOrderedLinkMapDisplay depthOrderedLinkMapDisplay;
 
     /**
      * Top layer of application, base pane
@@ -82,61 +85,37 @@ public class MainWindowController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         addMainMenu(borderBase);
 
-        processDisplay = new ProcessDisplay(displayWrapper);
+        depthOrderedLinkMapDisplay = new DepthOrderedLinkMapDisplay(displayWrapper);
         createNew();
 
-        ObservableList<String> selectedVertices = processDisplay.getSelectedVerticesObservableList();
+        ObservableList<String> selectedVertices = depthOrderedLinkMapDisplay.getSelectedVerticesObservableList();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
-//            if(c.getList().size()>0){
-//                maximiseInfoPane();
-//            } else {
-//                minimiseInfoPane();
-//            }
-                c.next();
-            setInfoPaneComments(c.getList().stream().map(id -> processDisplay.getVertex(id).get()).collect(Collectors.toList()));
+            c.next();
+            setInfoPaneComments(c.getList().stream().map(id -> depthOrderedLinkMapDisplay.getVertex(id).get()).collect(Collectors.toList()));
         });
 
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
-            if (key.getCode() == KeyCode.DELETE){
+            if (key.getCode() == KeyCode.DELETE) {
                 if (selectedVertices.size() == 1) {
-                    processDisplay.removeVertex(selectedVertices.get(0));
+                    depthOrderedLinkMapDisplay.removeVertex(selectedVertices.get(0));
                 } else if (selectedVertices.size() > 1) {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Multiple vertex deletion");
                     alert.setHeaderText("Multiple vertices are selected");
                     alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
                     alert.showAndWait();
-                    new ArrayList<>(selectedVertices).forEach(id -> processDisplay.removeVertex(id));
+                    new ArrayList<>(selectedVertices).forEach(id -> depthOrderedLinkMapDisplay.removeVertex(id));
                 }
-            } else if(key.getCode() == KeyCode.ESCAPE){
-                processDisplay.deselectAll();
-            } else if(key.getCode() == KeyCode.A && key.isControlDown()){
-                processDisplay.selectAll();
+            } else if (key.getCode() == KeyCode.ESCAPE) {
+                depthOrderedLinkMapDisplay.deselectAll();
+            } else if (key.getCode() == KeyCode.A && key.isControlDown()) {
+                depthOrderedLinkMapDisplay.selectAll();
             }
         }));
     }
 
     private Timeline infoPaneTimeline = new Timeline();
-
-//    private void minimiseInfoPane(){
-//        infoPaneTimeline.stop();
-//        infoPaneTimeline.getKeyFrames().clear();
-//        infoPaneTimeline.getKeyFrames().setAll(
-//                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
-//                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 35)));
-//        infoPaneTimeline.playFromStart();
-//    }
-//
-//    private void maximiseInfoPane(){
-//        infoPaneTimeline.stop();
-//        infoPaneTimeline.getKeyFrames().clear();
-//        infoPaneTimeline.getKeyFrames().setAll(
-//                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
-//                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 250)));
-//        infoPaneTimeline.playFromStart();
-//    }
-
 
     /**
      * The main menu for the application
@@ -164,7 +143,7 @@ public class MainWindowController implements Initializable {
 
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> {
-            if (processDisplay.requestClose()) Platform.exit();
+            if (depthOrderedLinkMapDisplay.requestClose()) Platform.exit();
         });
 
         file.getItems().setAll(newFile, openFile, saveFile, close);
@@ -188,7 +167,7 @@ public class MainWindowController implements Initializable {
             file = new File(file.getAbsolutePath() + ".wool");
         }
 
-        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", processDisplay.getVertexInfo()), file);
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthOrderedLinkMapDisplay.getVertexInfo()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
@@ -220,8 +199,8 @@ public class MainWindowController implements Initializable {
             fileName = loaded.getName();
             fileID = loaded.getId();
 
-            processDisplay.create(vertexInfoInMemory);
-            processDisplay.show();
+            depthOrderedLinkMapDisplay.create(vertexInfoInMemory);
+            depthOrderedLinkMapDisplay.show();
 
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
             setInfoPaneComments(new ArrayList<>());
@@ -247,7 +226,7 @@ public class MainWindowController implements Initializable {
      * @param selected the total number of vertices selected
      */
     private void setInfoPaneTitle(Integer total, Integer selected) {
-        infoPaneTitle.setText("Vertices: " + total + " (" + selected + ")");
+        infoPaneTitle.setText("Vertex info: " + " (" + selected + " selected)");
     }
 
     /**
@@ -258,13 +237,108 @@ public class MainWindowController implements Initializable {
     private void setInfoPaneComments(List<VertexData> data) {
         commentPane.getChildren().clear();
         if (data.size() == 0) return;
-        commentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
         for (VertexData vertex : data) {
-            Label label = new Label(vertex.getName());
-            label.getStyleClass().add("comment-text");
-            commentPane.getChildren().add(label);
+            GridPane holder = new GridPane();
+            holder.setPadding(new Insets(10));
+            holder.setVgap(5);
+            holder.setHgap(5);
+
+            HBox buttons = new HBox();
+            buttons.setAlignment(Pos.CENTER_RIGHT);
+            buttons.setSpacing(10);
+            Button edit = new Button("Edit");
+            Button cancel = new Button("Cancel");
+            Button confirm = new Button("OK");
+
+            Label titleKey = new Label("Title: ");
+            titleKey.setPrefHeight(27);
+            titleKey.setPrefWidth(120);
+            Label titleValue = new Label(vertex.getName());
+            TextField titleEdit = new TextField(vertex.getName());
+
+            GridPane.setConstraints(titleKey, 0, 0);
+            GridPane.setConstraints(titleKey, 0, 0);
+            GridPane.setConstraints(titleValue, 1, 0);
+            GridPane.setConstraints(titleValue, 1, 0);
+            GridPane.setConstraints(titleEdit, 1, 0);
+            GridPane.setConstraints(titleEdit, 1, 0);
+            holder.getChildren().addAll(titleKey, titleValue);
+
+            Label hyperlinkKey = new Label("Hyperlink");
+            hyperlinkKey.setPrefHeight(27);
+            hyperlinkKey.setPrefWidth(120);
+            Label hyperlinkValue = new Label(vertex.getHyperlinkURL() == null ? "(none)" : vertex.getHyperlinkURL());
+            hyperlinkValue.setPrefWidth(151);
+            TextField hyperlinkEdit = new TextField(vertex.getHyperlinkURL() == null ? "" : vertex.getHyperlinkURL());
+            hyperlinkEdit.setPrefWidth(151);
+            hyperlinkEdit.setOnKeyPressed(event -> {
+                        if (event.getCode() == KeyCode.ENTER) {
+                            updateVertex(holder, titleEdit, hyperlinkEdit, titleValue, hyperlinkValue, vertex);
+                            buttons.getChildren().setAll(edit);
+                        } else if (event.getCode() == KeyCode.ESCAPE){
+                            holder.getChildren().removeAll(titleEdit, hyperlinkEdit);
+                            holder.getChildren().addAll(titleValue, hyperlinkValue);
+                            buttons.getChildren().setAll(edit);
+                        }
+                    }
+            );
+            titleEdit.setOnKeyPressed(hyperlinkEdit.getOnKeyPressed());
+
+            ImageView launch = new ImageView(new Image(getClass().getResourceAsStream("/img/internet.png")));
+            GridPane.setConstraints(hyperlinkKey, 0, 1);
+            GridPane.setConstraints(hyperlinkKey, 0, 1);
+            GridPane.setConstraints(hyperlinkValue, 1, 1);
+            GridPane.setConstraints(hyperlinkValue, 1, 1);
+            GridPane.setConstraints(hyperlinkEdit, 1, 1);
+            GridPane.setConstraints(hyperlinkEdit, 1, 1);
+            GridPane.setConstraints(launch, 2, 1);
+            GridPane.setConstraints(launch, 2, 1);
+            holder.getChildren().addAll(hyperlinkKey, hyperlinkValue);
+
+            edit.setOnAction(event -> {
+                holder.getChildren().removeAll(titleValue, hyperlinkValue);
+                titleEdit.setText(titleValue.getText());
+                hyperlinkEdit.setText(vertex.getHyperlinkURL() == null ? "" : vertex.getHyperlinkURL());
+                holder.getChildren().addAll(titleEdit, hyperlinkEdit);
+                buttons.getChildren().setAll(cancel, confirm);
+                titleEdit.requestFocus();
+                titleEdit.positionCaret(0);
+                titleEdit.selectAll();
+            });
+
+            cancel.setOnAction(event -> {
+                holder.getChildren().removeAll(titleEdit, hyperlinkEdit);
+                holder.getChildren().addAll(titleValue, hyperlinkValue);
+                buttons.getChildren().setAll(edit);
+            });
+
+            confirm.setOnAction(event -> {
+                updateVertex(holder, titleEdit, hyperlinkEdit, titleValue, hyperlinkValue, vertex);
+                buttons.getChildren().setAll(edit);
+            });
+
+            GridPane.setConstraints(buttons, 1, 4);
+            GridPane.setConstraints(buttons, 1, 4);
+
+            buttons.getChildren().setAll(edit);
+            holder.getChildren().addAll(buttons);
+            commentPane.getChildren().addAll(holder, new Separator(Orientation.HORIZONTAL));
         }
-        commentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+    }
+
+    private void updateVertex(Pane holder, TextField titleEdit, TextField hyperlinkEdit,
+                              Label titleValue, Label hyperlinkValue, VertexData vertex) {
+        holder.getChildren().removeAll(titleEdit, hyperlinkEdit);
+        holder.getChildren().addAll(titleValue, hyperlinkValue);
+
+        vertex.setName(titleEdit.getText());
+        vertex.setHyperlinkURL(hyperlinkEdit.getText());
+
+        titleValue.setText(titleEdit.getText());
+        hyperlinkValue.setText(hyperlinkEdit.getText() == null ? "(none)" : vertex.getHyperlinkURL());
+
+        depthOrderedLinkMapDisplay.updateVertex(vertex.getId(), vertex);
+
     }
 
     /**
@@ -307,8 +381,8 @@ public class MainWindowController implements Initializable {
         fileName = startingState.getName();
         fileID = startingState.getId();
 
-        processDisplay.create(vertexInfoInMemory);
-        processDisplay.show();
+        depthOrderedLinkMapDisplay.create(vertexInfoInMemory);
+        depthOrderedLinkMapDisplay.show();
 
         setInfoPaneTitle(vertexInfoInMemory.size(), 0);
         setInfoPaneComments(new ArrayList<>());
@@ -343,7 +417,7 @@ public class MainWindowController implements Initializable {
      */
     private void clearAll() {
         vertexInfoInMemory.clear();
-        processDisplay.clearAll();
+        depthOrderedLinkMapDisplay.clearAll();
 
         programState = ProgramState.CLOSED;
         if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));
