@@ -9,6 +9,9 @@
 
 package com.edenrump.models;
 
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.ReadOnlyStringWrapper;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -38,7 +41,7 @@ public class VertexData implements Comparable<VertexData>{
     /**
      * The id of this node
      */
-    private String id;
+    private ReadOnlyStringWrapper id;
 
     /**
      * Create VertexData fron a name and a random id
@@ -75,10 +78,14 @@ public class VertexData implements Comparable<VertexData>{
      */
     public VertexData(String name, String id, List<String> connected, int depth, int priority){
         this.name = name;
-        this.id = id;
+        this.id = new ReadOnlyStringWrapper(id);
         this.connectedVertices = connected;
         this.depth = depth;
         this.priority = priority;
+    }
+
+    public ReadOnlyObjectWrapper<VertexData> readOnly() {
+        return new ReadOnlyObjectWrapper<>(this);
     }
 
     /**
@@ -150,19 +157,11 @@ public class VertexData implements Comparable<VertexData>{
      * @return the id
      */
     public String getId() {
-        return id;
-    }
-
-    /**
-     * Set the id of the node
-     * @param id integer id
-     */
-    public void setId(String id) {
-        this.id = id;
+        return id.get();
     }
 
     @Override
     public int compareTo(VertexData o) {
-        return o.getId().equals(this.id) ? 1 : 0 ;
+        return o.getId().equals(this.getId()) ? 1 : 0 ;
     }
 }

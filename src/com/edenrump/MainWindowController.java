@@ -15,7 +15,6 @@ import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.views.ProcessDisplay;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -76,40 +75,33 @@ public class MainWindowController implements Initializable {
     private List<VertexData> vertexInfoInMemory = new ArrayList<>();
 
     /**
-     * A list of the currently-selected vertices in the process display window
-     */
-    private ObservableList<VertexData> selectedVertices = FXCollections.observableArrayList();
-
-    /**
      * Initialise the application window
      */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         processDisplay = new ProcessDisplay(displayWrapper);
-        selectedVertices = processDisplay.getSelectedVertices();
-        selectedVertices.addListener((ListChangeListener<VertexData>) c -> {
+        ObservableList<String> selectedVertices = processDisplay.getSelectedVerticesId();
+        selectedVertices.addListener((ListChangeListener<String>) c -> {
             c.next();
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             String[] names = new String[c.getList().size()];
             for (int i = 0; i < c.getList().size(); i++) {
-                names[i] = c.getList().get(i).getName();
+                names[i] = processDisplay.getVertex(c.getList().get(i)).get().getName();
             }
             setInfoPaneComments(names);
         });
         addMainMenu(borderBase);
         createNew();
 
-        Platform.runLater(() -> {
-            stage.getScene().setOnKeyPressed(key -> {
-                if (key.getCode() == KeyCode.DELETE){
-                    processDisplay.deleteSelected();
-                } else if(key.getCode() == KeyCode.ESCAPE){
-                    processDisplay.deselectAll();
-                } else if(key.getCode() == KeyCode.A && key.isControlDown()){
-                    processDisplay.selectAll();
-                }
-            });
-        });
+        Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
+            if (key.getCode() == KeyCode.DELETE){
+                processDisplay.deleteSelected();
+            } else if(key.getCode() == KeyCode.ESCAPE){
+                processDisplay.deselectAll();
+            } else if(key.getCode() == KeyCode.A && key.isControlDown()){
+                processDisplay.selectAll();
+            }
+        }));
     }
 
     /**
@@ -167,9 +159,11 @@ public class MainWindowController implements Initializable {
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
         } else {
-            showDialog(Alert.AlertType.ERROR,"Save Failure",
-                    "Failed to save file",
-                    "File name valid but a problem occurred saving the data to JSON format");
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Save Failure");
+            alert.setHeaderText("Failed to save file");
+            alert.setContentText("File name valid but a problem occurred saving the data to JSON format");
+            alert.showAndWait();
         }
     }
 
@@ -182,7 +176,7 @@ public class MainWindowController implements Initializable {
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
         File file = fileChooser.showOpenDialog(stage.getScene().getWindow());
         if (file == null) return;
-        if (programState == ProgramState.UNSAVED && !promptDiscardUnsavedContent()) return;
+        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
 
         ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
 
@@ -240,21 +234,6 @@ public class MainWindowController implements Initializable {
     }
 
     /**
-     * Utility method. Create an alert and show it to the user
-     *
-     * @param windowTitle     the window title of the alert
-     * @param headerText      the text to include as the header text of the alert window
-     * @param descriptionText the text to include as the description text of the alert
-     */
-    private void showDialog(Alert.AlertType type, String windowTitle, String headerText, String descriptionText) {
-        Alert alert = new Alert(type);
-        alert.setTitle(windowTitle);
-        alert.setHeaderText(headerText);
-        alert.setContentText(descriptionText);
-        alert.showAndWait();
-    }
-
-    /**
      * Utility method. Register that a change has been made to the information in the cache and change the
      * window title to display an asterisk after the file name
      */
@@ -268,18 +247,14 @@ public class MainWindowController implements Initializable {
      *
      * @return the users decision
      */
-    private boolean promptDiscardUnsavedContent() {
+    private boolean cancelActionToSaveContent() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Discard Unsaved Content?");
         alert.setHeaderText("Proceeding will discard unsaved content");
         alert.setContentText("Go ahead and discard?");
 
         Optional<ButtonType> result = alert.showAndWait();
-        if (result.filter(buttonType -> buttonType == ButtonType.OK).isPresent()) {
-            return true;
-        } else {
-            return false;
-        }
+        return !result.filter(buttonType -> buttonType == ButtonType.OK).isPresent();
     }
 
     /**
@@ -291,7 +266,7 @@ public class MainWindowController implements Initializable {
      * Create a new thread map and display the start node
      */
     private void createNew() {
-        if (programState == ProgramState.UNSAVED && !promptDiscardUnsavedContent()) return;
+        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
         clearAll();
         ThreadsData startingState = initialState();
         vertexInfoInMemory = startingState.getVertices();
