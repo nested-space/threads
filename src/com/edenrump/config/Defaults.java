@@ -13,7 +13,7 @@ public class Defaults {
     public static final String APPLICATION_NAME = "Threads";
     public static final String LOAD_MODULE_NAME = "File";
     public static final double FADE_TIME = 200;
-    public static final double DELAY_TIME = 500;
+    public static final double DELAY_TIME = 350;
 
     public static String createTitle(String suffix) {
         return APPLICATION_NAME + " | " + suffix;

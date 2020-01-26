@@ -21,7 +21,7 @@
     </center>
     <right>
         <ScrollPane fitToWidth="true" fitToHeight="true">
-            <FlowPane fx:id="infoPane" orientation="VERTICAL" styleClass="flowPane" prefWidth="300" minWidth="300">
+            <VBox fx:id="infoPane" styleClass="flowPane" prefWidth="0">
                 <padding>
                     <Insets topRightBottomLeft="25"/>
                 </padding>
@@ -31,7 +31,7 @@
                         <Insets top="10" bottom="25"/>
                     </padding>
                 </VBox>
-            </FlowPane>
+            </VBox>
         </ScrollPane>
     </right>
 </BorderPane>

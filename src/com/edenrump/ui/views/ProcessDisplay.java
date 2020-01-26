@@ -23,7 +23,10 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -32,8 +35,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
+import static com.edenrump.config.Defaults.DELAY_TIME;
 
-import javax.xml.crypto.Data;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -102,8 +105,8 @@ public class ProcessDisplay {
         Platform.runLater(() -> {
             PauseTransition timeForWindowToLoad = new PauseTransition(Duration.seconds(2));
             timeForWindowToLoad.setOnFinished(event -> {
-                processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
-                processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+                processDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(()-> reconcilePrepAndDisplay(1)));
+                processDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(()-> reconcilePrepAndDisplay(1)));
             });
             timeForWindowToLoad.play();
         });
@@ -129,7 +132,7 @@ public class ProcessDisplay {
      *
      * @return an observable list of selected vertices
      */
-    public ObservableList<String> getSelectedVerticesId() {
+    public ObservableList<String> getSelectedVerticesObservableList() {
         return selectedVertices;
     }
 
@@ -450,7 +453,7 @@ public class ProcessDisplay {
             t.setOnFinished(actionEvent -> {
                 newNodeData.displayNode.setLayoutX(ltsX(newNodeData.preparationNode));
                 newNodeData.displayNode.setLayoutY(ltsY(newNodeData.preparationNode));
-                reconcilePrepAndDisplay();
+                reconcilePrepAndDisplay(DELAY_TIME);
             });
             t.playFromStart();
         });
@@ -519,7 +522,7 @@ public class ProcessDisplay {
 
         Platform.runLater(() -> {
             PauseTransition pause = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
-            pause.setOnFinished(event -> reconcilePrepAndDisplay());
+            pause.setOnFinished(event -> reconcilePrepAndDisplay(DELAY_TIME));
             pause.play();
         });
     }
@@ -631,14 +634,13 @@ public class ProcessDisplay {
     /**
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
-    public void reconcilePrepAndDisplay() {
-        double length = 350;
+    public void reconcilePrepAndDisplay(double delay) {
         Timeline all = new Timeline(30);
 
         for (Node node : toBeRemovedOnNextPass) {
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(node.opacityProperty(), node.getOpacity())),
-                    new KeyFrame(Duration.millis(length), new KeyValue(node.opacityProperty(), 0))
+                    new KeyFrame(Duration.millis(delay), new KeyValue(node.opacityProperty(), 0))
             );
         }
 
@@ -646,12 +648,12 @@ public class ProcessDisplay {
             if (displayNode.getOpacity() == 0) {
                 all.getKeyFrames().addAll(
                         new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
-                        new KeyFrame(Duration.millis(length), new KeyValue(displayNode.opacityProperty(), 1)));
+                        new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.opacityProperty(), 1)));
                 if (displayNode instanceof TitledContentPane) {
                     TitledContentPane d = (TitledContentPane) displayNode;
                     all.getKeyFrames().addAll(
                             new KeyFrame(Duration.millis(0), new KeyValue(d.translateYProperty(), -12)),
-                            new KeyFrame(Duration.millis(length), new KeyValue(d.translateYProperty(), 0)));
+                            new KeyFrame(Duration.millis(delay), new KeyValue(d.translateYProperty(), 0)));
                 }
             }
         }
@@ -663,8 +665,8 @@ public class ProcessDisplay {
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
-                    new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
-                    new KeyFrame(Duration.millis(length), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
+                    new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
+                    new KeyFrame(Duration.millis(delay), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
         }
         all.setOnFinished(event -> {
             displayOverlay.getChildren().removeAll(toBeRemovedOnNextPass);
@@ -718,7 +720,7 @@ public class ProcessDisplay {
                     n.setLayoutX(x);
                     n.setLayoutY(y);
                 }
-                reconcilePrepAndDisplay();
+                reconcilePrepAndDisplay(DELAY_TIME);
             });
             t.playFromStart();
         });

@@ -14,6 +14,9 @@ import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.views.ProcessDisplay;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -23,21 +26,23 @@ import javafx.geometry.Orientation;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
+import sun.security.provider.certpath.Vertex;
 
 import java.io.File;
 import java.net.URL;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class MainWindowController implements Initializable {
 
     /**
      * Display pane for information about the process and selected contents
      */
-    public FlowPane infoPane;
+    public VBox infoPane;
 
     /**
      * The stage on which the scene graph of the application is displayed. Useful for changing window titles
@@ -79,19 +84,22 @@ public class MainWindowController implements Initializable {
      */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        processDisplay = new ProcessDisplay(displayWrapper);
-        ObservableList<String> selectedVertices = processDisplay.getSelectedVerticesId();
-        selectedVertices.addListener((ListChangeListener<String>) c -> {
-            c.next();
-            setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
-            String[] names = new String[c.getList().size()];
-            for (int i = 0; i < c.getList().size(); i++) {
-                names[i] = processDisplay.getVertex(c.getList().get(i)).get().getName();
-            }
-            setInfoPaneComments(names);
-        });
         addMainMenu(borderBase);
+
+        processDisplay = new ProcessDisplay(displayWrapper);
         createNew();
+
+        ObservableList<String> selectedVertices = processDisplay.getSelectedVerticesObservableList();
+        selectedVertices.addListener((ListChangeListener<String>) c -> {
+            setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
+            if(c.getList().size()>0){
+                maximiseInfoPane();
+            } else {
+                minimiseInfoPane();
+            }
+                c.next();
+            setInfoPaneComments(c.getList().stream().map(id -> processDisplay.getVertex(id).get()).collect(Collectors.toList()));
+        });
 
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE){
@@ -112,6 +120,27 @@ public class MainWindowController implements Initializable {
             }
         }));
     }
+
+    private Timeline infoPaneTimeline = new Timeline();
+
+    private void minimiseInfoPane(){
+        infoPaneTimeline.stop();
+        infoPaneTimeline.getKeyFrames().clear();
+        infoPaneTimeline.getKeyFrames().setAll(
+                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
+                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 35)));
+        infoPaneTimeline.playFromStart();
+    }
+
+    private void maximiseInfoPane(){
+        infoPaneTimeline.stop();
+        infoPaneTimeline.getKeyFrames().clear();
+        infoPaneTimeline.getKeyFrames().setAll(
+                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
+                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 250)));
+        infoPaneTimeline.playFromStart();
+    }
+
 
     /**
      * The main menu for the application
@@ -199,12 +228,12 @@ public class MainWindowController implements Initializable {
             processDisplay.show();
 
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
-            setInfoPaneComments();
+            setInfoPaneComments(new ArrayList<>());
         }
     }
 
     /**
-     * Container for infopane comments
+     * Container for infopane data
      */
     @FXML
     private VBox commentPane = new VBox();
@@ -226,16 +255,16 @@ public class MainWindowController implements Initializable {
     }
 
     /**
-     * Set the comments in the info pane //TODO: replace with better vertex descriptions
+     * Set the data in the info pane //TODO: replace with better vertex descriptions
      *
-     * @param comments the comments to be added
+     * @param data the data to be added
      */
-    private void setInfoPaneComments(String... comments) {
+    private void setInfoPaneComments(List<VertexData> data) {
         commentPane.getChildren().clear();
-        if (comments.length == 0) return;
-        commentPane.getChildren().addAll(new Separator(Orientation.HORIZONTAL));
-        for (String comment : comments) {
-            Label label = new Label(comment);
+        if (data.size() == 0) return;
+        commentPane.getChildren().add(new Separator(Orientation.HORIZONTAL));
+        for (VertexData vertex : data) {
+            Label label = new Label(vertex.getName());
             label.getStyleClass().add("comment-text");
             commentPane.getChildren().add(label);
         }
@@ -286,7 +315,7 @@ public class MainWindowController implements Initializable {
         processDisplay.show();
 
         setInfoPaneTitle(vertexInfoInMemory.size(), 0);
-        setInfoPaneComments();
+        setInfoPaneComments(new ArrayList<>());
     }
 
     /**
