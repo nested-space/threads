@@ -95,7 +95,16 @@ public class MainWindowController implements Initializable {
 
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE){
-                processDisplay.deleteSelected();
+                if (selectedVertices.size() == 1) {
+                    processDisplay.removeVertex(selectedVertices.get(0));
+                } else if (selectedVertices.size() > 1) {
+                    Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    alert.setTitle("Multiple vertex deletion");
+                    alert.setHeaderText("Multiple vertices are selected");
+                    alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
+                    alert.showAndWait();
+                    new ArrayList<>(selectedVertices).forEach(id -> processDisplay.removeVertex(id));
+                }
             } else if(key.getCode() == KeyCode.ESCAPE){
                 processDisplay.deselectAll();
             } else if(key.getCode() == KeyCode.A && key.isControlDown()){

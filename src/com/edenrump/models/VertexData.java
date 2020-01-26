@@ -164,4 +164,15 @@ public class VertexData implements Comparable<VertexData>{
     public int compareTo(VertexData o) {
         return o.getId().equals(this.getId()) ? 1 : 0 ;
     }
+
+    /**
+     * Transcribe the properties of a vertex into this vertex. Do not change the id.
+     * @param vertex the vertex whose properties are to be copied
+     */
+    public void update(VertexData vertex) {
+        this.name=vertex.getName();
+        this.connectedVertices = new ArrayList<>(vertex.getConnectedVertices());
+        this.depth = vertex.getDepth();
+        this.priority = vertex.getPriority();
+    }
 }

@@ -33,6 +33,7 @@ import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
+import javax.xml.crypto.Data;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -134,10 +135,11 @@ public class ProcessDisplay {
 
     /**
      * Select a vertex by its id. Return a read-only version of that vertex
+     *
      * @param id the id of the vertex
      * @return a read-only version of the vertex
      */
-    public ReadOnlyObjectWrapper<VertexData> getVertex(String id){
+    public ReadOnlyObjectWrapper<VertexData> getVertex(String id) {
         return idToNodeMap.get(id).vertexData.readOnly();
     }
 
@@ -176,12 +178,10 @@ public class ProcessDisplay {
      */
     private DataAndNodes createNodes(VertexData data) {
         //Create node for preparation area of display
-        TitledContentPane prepNode = new TitledContentPane();
-        prepNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+        TitledContentPane prepNode = convertDataToNode(data);
 
         //Create node for display overlay
-        TitledContentPane displayNode = new TitledContentPane();
-        displayNode.addHeaderBox(data.getName(), data.getId(), Color.ALICEBLUE);
+        TitledContentPane displayNode = convertDataToNode(data);
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
         displayNode.setId(data.getId());
@@ -192,6 +192,17 @@ public class ProcessDisplay {
         displayNode.setOnMouseClicked(event -> handleSelection(data.getId(), event));
 
         return new DataAndNodes(data, prepNode, displayNode);
+    }
+
+    /**
+     * Utility method. Ensure vertex data is consistenly translated into a dispay object
+     * @param v the vertex to display
+     * @return a consistent node to display on the scene graph
+     */
+    private TitledContentPane convertDataToNode(VertexData v) {
+        TitledContentPane node = new TitledContentPane();
+        node.addHeaderBox(v.getName(), v.getId(), Color.ALICEBLUE);
+        return node;
     }
 
     /**
@@ -475,8 +486,9 @@ public class ProcessDisplay {
     /**
      * Utility method. Maintain the vertexToEdgesMap to maintain links between edges in the display
      * and the vertices they're linked to
+     *
      * @param vertex the vertex to which the edge should be bound
-     * @param edge the edge
+     * @param edge   the edge
      */
     private void linkVertexToEdge(Node vertex, Node edge) {
         vertexToEdgesMap.computeIfAbsent(vertex, k -> new ArrayList<>());
@@ -486,18 +498,19 @@ public class ProcessDisplay {
     /**
      * Remove a vertex from the graph. Schedule
      *
-     * @param toRemove the vertex to be removed
+     * @param id the id of the vertex to be removed
      */
-    public void removeVertex(VertexData toRemove) {
-        toBeRemovedOnNextPass.add(idToNodeMap.get(toRemove.getId()).displayNode);
-        toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(idToNodeMap.get(toRemove.getId()).displayNode));
+    public void removeVertex(String id) {
+        DataAndNodes toRemove = idToNodeMap.get(id);
+        toBeRemovedOnNextPass.add(toRemove.displayNode);
+        toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(toRemove.displayNode));
 
-        preparationDisplayMap.remove(idToNodeMap.get(toRemove.getId()).preparationNode);
-        idToNodeMap.remove(toRemove.getId());
+        preparationDisplayMap.remove(toRemove.preparationNode);
+        idToNodeMap.remove(id);
 
         idToNodeMap.values().stream()
                 .map(data -> data.vertexData)
-                .forEach(vertex -> vertex.getConnectedVertices().remove(toRemove.getId()));
+                .forEach(vertex -> vertex.getConnectedVertices().remove(id));
 
         selectedVertices.clear();
         resetHighlightingOnAllNodes();
@@ -509,6 +522,30 @@ public class ProcessDisplay {
             pause.setOnFinished(event -> reconcilePrepAndDisplay());
             pause.play();
         });
+    }
+
+    /**
+     * Update the display nodes. If depth has changed, reset the preparation display. Update the vertex data
+     * @param id the id of the vertex to update
+     * @param vertex the vertexData object containing the updated information
+     */
+    public void updateVertex(String id, VertexData vertex) {
+        updateNode(idToNodeMap.get(id).preparationNode, vertex);
+        updateNode(idToNodeMap.get(id).displayNode, vertex);
+
+        if (idToNodeMap.get(id).vertexData.getDepth() != vertex.getDepth()) {
+            idToNodeMap.get(id).vertexData.update(vertex);
+            resetPreparationDisplay();
+        } else {
+            idToNodeMap.get(id).vertexData.update(vertex);
+        }
+    }
+
+    private void updateNode(Node n, VertexData v) {
+        if (n instanceof TitledContentPane) {
+            TitledContentPane tcp = (TitledContentPane) n;
+            tcp.setTitle(v.getName());
+        }
     }
 
     /**
@@ -758,22 +795,6 @@ public class ProcessDisplay {
         selectedVertices.setAll(idToNodeMap.values().stream().map(dataAndNodes -> dataAndNodes.vertexData.getId()).collect(Collectors.toList()));
         highlightSelectedNodes();
 
-    }
-
-    /**
-     * Delete the nodes that are currently selected in the display
-     */
-    public void deleteSelected() {
-        if (selectedVertices.size() == 1) {
-            removeVertex(idToNodeMap.get(selectedVertices.get(0)).vertexData);
-        } else if (selectedVertices.size() > 1) {
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-            alert.setTitle("Multiple vertex deletion");
-            alert.setHeaderText("Multiple vertices are selected");
-            alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
-            alert.showAndWait();
-            new ArrayList<>(selectedVertices).forEach(id -> removeVertex(idToNodeMap.get(id).vertexData));
-        }
     }
 
     /**
