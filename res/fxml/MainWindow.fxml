@@ -8,30 +8,33 @@
   -->
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.ScrollPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.AnchorPane?>
 <BorderPane fx:id="borderBase" fx:controller="com.edenrump.MainWindowController"
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>
+        <SplitPane orientation="VERTICAL" dividerPositions="0.65">
             <ScrollPane fx:id="displayWrapper"/>
+            <ScrollPane styleClass="info-wrapper" fitToHeight="true" fitToWidth="true">
+                <VBox fx:id="infoPane" styleClass="infoPane">
+                    <padding>
+                        <Insets topRightBottomLeft="10"/>
+                    </padding>
+                    <Label fx:id="infoPaneTitle" styleClass="big-text"/>
+                    <VBox fx:id="commentPane" spacing="10">
+                        <padding>
+                            <Insets top="10" bottom="25"/>
+                        </padding>
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+        </SplitPane>
     </center>
     <right>
-        <ScrollPane fitToWidth="true" fitToHeight="true">
-            <VBox fx:id="infoPane" styleClass="flowPane" prefWidth="0">
-                <padding>
-                    <Insets topRightBottomLeft="25"/>
-                </padding>
-                <Label fx:id="infoPaneTitle" styleClass="big-grey-text"/>
-                <VBox fx:id="commentPane" spacing="10">
-                    <padding>
-                        <Insets top="10" bottom="25"/>
-                    </padding>
-                </VBox>
-            </VBox>
-        </ScrollPane>
     </right>
 </BorderPane>

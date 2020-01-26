@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui.views;
+package com.edenrump.views;
 
 import com.edenrump.config.Defaults;
 import com.edenrump.models.VertexData;
@@ -476,8 +476,8 @@ public class ProcessDisplay {
         newEdge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
         newEdge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
         newEdge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
-        newEdge.setStroke(Color.BLUE);
-        newEdge.setStrokeWidth(0.5);
+        newEdge.setStroke(Color.web("#003865"));
+        newEdge.setStrokeWidth(0.75);
         newEdge.setStrokeLineCap(StrokeLineCap.ROUND);
         newEdge.setFill(Color.TRANSPARENT);
 

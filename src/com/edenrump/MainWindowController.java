@@ -13,9 +13,7 @@ import com.edenrump.config.Defaults;
 import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
-import com.edenrump.ui.views.ProcessDisplay;
-import javafx.animation.KeyFrame;
-import javafx.animation.KeyValue;
+import com.edenrump.views.ProcessDisplay;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -29,8 +27,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.util.Duration;
-import sun.security.provider.certpath.Vertex;
 
 import java.io.File;
 import java.net.URL;
@@ -92,11 +88,11 @@ public class MainWindowController implements Initializable {
         ObservableList<String> selectedVertices = processDisplay.getSelectedVerticesObservableList();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
-            if(c.getList().size()>0){
-                maximiseInfoPane();
-            } else {
-                minimiseInfoPane();
-            }
+//            if(c.getList().size()>0){
+//                maximiseInfoPane();
+//            } else {
+//                minimiseInfoPane();
+//            }
                 c.next();
             setInfoPaneComments(c.getList().stream().map(id -> processDisplay.getVertex(id).get()).collect(Collectors.toList()));
         });
@@ -123,23 +119,23 @@ public class MainWindowController implements Initializable {
 
     private Timeline infoPaneTimeline = new Timeline();
 
-    private void minimiseInfoPane(){
-        infoPaneTimeline.stop();
-        infoPaneTimeline.getKeyFrames().clear();
-        infoPaneTimeline.getKeyFrames().setAll(
-                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
-                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 35)));
-        infoPaneTimeline.playFromStart();
-    }
-
-    private void maximiseInfoPane(){
-        infoPaneTimeline.stop();
-        infoPaneTimeline.getKeyFrames().clear();
-        infoPaneTimeline.getKeyFrames().setAll(
-                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
-                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 250)));
-        infoPaneTimeline.playFromStart();
-    }
+//    private void minimiseInfoPane(){
+//        infoPaneTimeline.stop();
+//        infoPaneTimeline.getKeyFrames().clear();
+//        infoPaneTimeline.getKeyFrames().setAll(
+//                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
+//                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 35)));
+//        infoPaneTimeline.playFromStart();
+//    }
+//
+//    private void maximiseInfoPane(){
+//        infoPaneTimeline.stop();
+//        infoPaneTimeline.getKeyFrames().clear();
+//        infoPaneTimeline.getKeyFrames().setAll(
+//                new KeyFrame(Duration.millis(0), new KeyValue(infoPane.prefWidthProperty(), infoPane.getPrefWidth())),
+//                new KeyFrame(Duration.millis(250), new KeyValue(infoPane.prefWidthProperty(), 250)));
+//        infoPaneTimeline.playFromStart();
+//    }
 
 
     /**

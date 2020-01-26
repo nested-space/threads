@@ -172,7 +172,7 @@ public class TitledContentPane extends VBox {
      * Set the style for the node on occasions when you want it to be less visible within the scene graph
      */
     public void lowlight() {
-        String cssLayout = "-fx-border-color: blue;\n";
+        String cssLayout = "-fx-border-color: #003865;\n";
         setStyle(cssLayout);
         setOpacity(0.3);
     }
@@ -181,7 +181,7 @@ public class TitledContentPane extends VBox {
      * Reset the style of the node to its default style
      */
     public void resetHighlighting(){
-        String cssLayout = "-fx-border-color: blue;\n";
+        String cssLayout = "-fx-border-color: #003865;\n";
         setStyle(cssLayout);
         setOpacity(1);
     }
