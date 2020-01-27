@@ -60,12 +60,12 @@ import static com.edenrump.config.Defaults.DELAY_TIME;
  */
 public class DepthGraphDisplay {
 
-    private HorizontalDirection plottingDirection = HorizontalDirection.LEFT;
+    private HorizontalDirection plottingDirection;
 
     /**
      * Scrollpane that encapsulates all process preparation and display containers.
      */
-    public ScrollPane linkMapDisplay;
+    ScrollPane linkMapDisplay;
     /**
      * Container in the background of the display that deals with position of nodes
      * <p>
@@ -74,11 +74,11 @@ public class DepthGraphDisplay {
      * move nodes from their original position to their new one. This might be less efficient, but it means I don't
      * have to code my own Region types to hold the nodes.
      */
-    public HBox preparationContainer = new HBox();
+    HBox preparationContainer = new HBox();
     /**
      * Anchorpane at the front of the display in which real nodes are placed
      */
-    public AnchorPane displayOverlay = new AnchorPane();
+    AnchorPane displayOverlay = new AnchorPane();
 
     /**
      * A map of node containers to info nodes
@@ -152,9 +152,10 @@ public class DepthGraphDisplay {
             lastSelected = null;
         });
 
-        preparationContainer.setOpacity(0);
-        preparationContainer.setAlignment(Pos.CENTER);
+        preparationContainer.setPadding(new Insets(25, 25, 25, 35));
         preparationContainer.setSpacing(125);
+        preparationContainer.setAlignment(Pos.CENTER);
+        preparationContainer.setOpacity(0);
         preparationContainer.setMouseTransparent(true);
     }
 
@@ -702,7 +703,6 @@ public class DepthGraphDisplay {
     VBox createPrepColumn(List<String> nodeIds, String title) {
         VBox container = new VBox();
         container.setAlignment(Pos.TOP_CENTER);
-        container.setPadding(new Insets(25, 0, 0, 0));
         container.setSpacing(25);
 
         Label prepTitleLabel = new Label(title);
@@ -727,17 +727,13 @@ public class DepthGraphDisplay {
 
         Comparator<VertexData> sortPriority = Comparator.comparingInt(VertexData::getPriority);
 
-        System.out.println(title);
         idToNodeMap.keySet().stream()
                 .filter(nodeIds::contains)
                 .map(id -> idToNodeMap.get(id).getVertexData())
                 .sorted(sortPriority)
-                .forEachOrdered(data -> {
-                    System.out.println(data.getPriority());
-                    body.getChildren().add(idToNodeMap.get(data.getId()).getPreparationNode());
-                });
+                .forEachOrdered(data -> body.getChildren().add(idToNodeMap.get(data.getId()).getPreparationNode()));
 
-        System.out.println("");
+        System.out.println();
         container.getChildren().addAll(head, body);
         return container;
     }
@@ -821,7 +817,7 @@ public class DepthGraphDisplay {
     /**
      * Calculate the positions of vertices and re-create edges for the display based on data in the vertices list
      */
-    private void recastDisplayFromCachedData() {
+    void recastDisplayFromCachedData() {
         clearNodes();
         displayOverlay.getChildren().addAll(preparationDisplayMap.values());
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
@@ -860,15 +856,13 @@ public class DepthGraphDisplay {
             visitedNodes.add(currentVertex.getId());
 
             currentVertex.getConnectedVertices().stream()
-                    .filter(id -> !visitedNodes.contains(id))
+                    .filter(id -> !visitedNodes.contains(id) && vertexMap.containsKey(id))
                     .forEach(id -> unvisitedNodes.add(vertexMap.get(id).getVertexData()));
 
-            currentVertex.getConnectedVertices().stream()
+            currentVertex.getConnectedVertices().stream().filter(vertexMap::containsKey)
                     .map(id -> vertexMap.get(id).getVertexData())
                     .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
-                    .forEach(endVertex -> {
-                        createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId()));
-                    });
+                    .forEach(endVertex -> createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId())));
         }
     }
 
@@ -924,15 +918,6 @@ public class DepthGraphDisplay {
      */
     public List<VertexData> getVertexInfo() {
         return idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList());
-    }
-
-    /**
-     * TODO: Determine whether there are unsaved changes in the program. If necessary, prompt user whether to discard changes
-     *
-     * @return whether it's OK to close the display
-     */
-    public boolean requestClose() {
-        return true;
     }
 
     /**
@@ -995,35 +980,6 @@ public class DepthGraphDisplay {
         }
     }
 
-    private static class TitlePrepDisplayLabels implements Comparable<TitlePrepDisplayLabels> {
-        String title;
-        Label prepLabel;
-        Label displayLabel;
-
-        public TitlePrepDisplayLabels(String title, Label prepLabel, Label displayLabel) {
-            this.title = title;
-            this.prepLabel = prepLabel;
-            this.displayLabel = displayLabel;
-        }
-
-        /**
-         * Compares this object with the specified object for order.  Returns a
-         * negative integer, zero, or a positive integer as this object is less
-         * than, equal to, or greater than the specified object.
-         *
-         * @param o the object to be compared.
-         * @return a negative integer, zero, or a positive integer as this object
-         * is less than, equal to, or greater than the specified object.
-         * @throws NullPointerException if the specified object is null
-         * @throws ClassCastException   if the specified object's type prevents it
-         *                              from being compared to this object.
-         */
-        @Override
-        public int compareTo(TitlePrepDisplayLabels o) {
-            return title.equals(o.title) ? 1 : 0;
-        }
-    }
-
     /* ****************************************************************************************************************
      *                                                       GETTERS AND SETTERS
      **************************************************************************************************************** */
@@ -1038,6 +994,10 @@ public class DepthGraphDisplay {
 
     Map<String, DataAndNodes> getIdToNodeMap() {
         return idToNodeMap;
+    }
+
+    public Map<String, Pair<Label, Label>> getIdPrepDisplayLabelMap() {
+        return idPrepDisplayLabelMap;
     }
 
 
