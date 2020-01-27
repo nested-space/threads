@@ -11,6 +11,7 @@ package com.edenrump.views;
 
 import com.edenrump.config.Defaults;
 import com.edenrump.graph.DataAndNodes;
+import com.edenrump.models.VertexData;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.HorizontalDirection;
@@ -18,10 +19,15 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.edenrump.config.Defaults.DELAY_TIME;
 
@@ -62,9 +68,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         clearNodes();
 
         Map<String, DataAndNodes> visibleNodes = new HashMap<>();
-        getIdToNodeMap().keySet().stream()
-                .filter(id -> getIdToNodeMap().get(id).getVertexData().getDepth() == 0)
-                .forEach(id -> visibleNodes.put(id, getIdToNodeMap().get(id)));
+        idToNodeMap.keySet().stream()
+                .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
+                .forEach(id -> visibleNodes.put(id, idToNodeMap.get(id)));
 
         visibleNodes.values().forEach(data -> displayOverlay.getChildren().add(data.getDisplayNode()));
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
@@ -81,9 +87,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     visibleNodes.get(id).getDisplayNode().setLayoutY(visibleNodes.get(id).getPreparationNode().getLayoutY() + 50);
                 }
 
-                for (String title : getIdPrepDisplayLabelMap().keySet()) {
-                    Node displayLabel = getIdPrepDisplayLabelMap().get(title).getValue();
-                    Node prepLabel = getIdPrepDisplayLabelMap().get(title).getKey();
+                for (String title : idPrepDisplayLabelMap.keySet()) {
+                    Node displayLabel = idPrepDisplayLabelMap.get(title).getValue();
+                    Node prepLabel = idPrepDisplayLabelMap.get(title).getKey();
                     displayLabel.setLayoutX(prepLabel.getLayoutX());
                     displayLabel.setLayoutY(prepLabel.getLayoutY());
                 }
@@ -92,6 +98,96 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             });
             t.playFromStart();
         });
+
+    }
+
+    /**
+     * Determine whether the secondary button has launched the event. If so, return.
+     * <p>
+     * Determine whether a root node has been clicked. If so, reload the display with the correct branches and leaves
+     * <p>
+     * If a branch or leaf has been selected, apply normal selection rules
+     *
+     * @param vertexId the vertex selected
+     * @param event    the mouse-event that triggered the selection
+     */
+    @Override
+    void handleSelection(String vertexId, MouseEvent event) {
+        if (event.getButton() == MouseButton.SECONDARY && selectedVertices.contains(vertexId)) {
+            event.consume();
+            return;
+        }
+
+        if (idToNodeMap.get(vertexId).getVertexData().getDepth() == 0) {
+            List<String> makeVisible = unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH)
+                    .stream().map(data -> idToNodeMap.get(data.getId()).getVertexData().getId()).collect(Collectors.toList());
+
+            makeVisible.addAll(idToNodeMap.keySet().stream()
+                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth()==0).collect(Collectors.toList()));
+
+            List<DataAndNodes> toRemove = idToNodeMap.keySet().stream()
+                    .filter(id -> !makeVisible.contains(id))
+                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() != 0)
+                    .map(id -> idToNodeMap.get(id))
+                    .collect(Collectors.toList());
+
+            toRemove.forEach(dataAndNodes -> preparationDisplayMap.remove(dataAndNodes.getPreparationNode()));
+
+            toBeRemovedOnNextPass.addAll(toRemove.stream().map(DataAndNodes::getDisplayNode).collect(Collectors.toList()));
+            toRemove.stream()
+                    .filter(dataAndNodes -> vertexToEdgesMap.containsKey(dataAndNodes.getDisplayNode()))
+                    .forEach(dataAndNodes -> toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(dataAndNodes.getDisplayNode())));
+            toBeRemovedOnNextPass = toBeRemovedOnNextPass.stream().distinct().collect(Collectors.toList()); //remove duplicate edges
+
+            selectedVertices.setAll(vertexId);
+            resetHighlightingOnAllNodes();
+
+            makeVisible.stream()
+                    .filter(id -> !preparationDisplayMap.containsValue(idToNodeMap.get(id).getDisplayNode()))
+                    .forEach(id -> idToNodeMap.get(id).getDisplayNode().setOpacity(0));
+
+            Map<String, DataAndNodes> collect = idToNodeMap.entrySet().stream()
+                    .filter(x -> makeVisible.contains(x.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            resetPreparationDisplay(collect);
+
+            collect.values().forEach(dataAndNodes -> {
+                        if (!displayOverlay.getChildren().contains(dataAndNodes.getDisplayNode()))
+                            displayOverlay.getChildren().add(dataAndNodes.getDisplayNode());
+                    }
+            );
+
+            Platform.runLater(() -> {
+                PauseTransition pause = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
+                pause.setOnFinished(e -> reconcilePrepAndDisplay(DELAY_TIME));
+                pause.play();
+            });
+            return;
+        }
+
+        VertexData vertexClicked = idToNodeMap.get(vertexId).getVertexData();
+        if (event.isShiftDown() && lastSelected != null) {
+            List<VertexData> vertices = findShortestPath(lastSelected, vertexClicked,
+                    idToNodeMap.values().stream()
+                            .map(DataAndNodes::getVertexData)
+                            .collect(Collectors.toList()));
+            selectedVertices.setAll(vertices.stream().map(VertexData::getId).collect(Collectors.toList()));
+        } else if (event.isControlDown()) {
+            if (!selectedVertices.contains(vertexClicked.getId())) {
+                selectedVertices.add(vertexClicked.getId());
+                lastSelected = vertexClicked;
+            } else {
+                selectedVertices.remove(vertexClicked.getId());
+            }
+        } else {
+            selectedVertices.setAll(vertexClicked.getId());
+            lastSelected = vertexClicked;
+        }
+
+        highlightSelectedNodes();
+
+        event.consume();
 
     }
 }

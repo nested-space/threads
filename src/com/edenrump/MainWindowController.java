@@ -406,8 +406,8 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        File example = new File("res/examples/AceticAcid.wool");
-        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.wool"));
+        File example = new File("res/examples/AceticAcid.json");
+        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.json"));
     }
 
     /**

@@ -59,7 +59,7 @@ public class TitledContentPane extends VBox {
     public TitledContentPane() {
         super();
         setBackground(new Background(new BackgroundFill(Color.web("#D1DBE3"), CornerRadii.EMPTY, Insets.EMPTY)));
-        titlePane.setTextAlignment(Pos.CENTER);
+        titlePane.setTextAlignment(Pos.CENTER_LEFT);
         getChildren().addAll(titlePane, image, tagContainer);
         resetHighlighting();
     }

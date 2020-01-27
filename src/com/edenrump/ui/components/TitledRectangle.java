@@ -109,10 +109,11 @@ public class TitledRectangle extends StackPane {
         mBackgroundRectangle.setArcWidth(DEFAULT_HEIGHT / 2);
 
         //set up label
-        mLabel.setPadding(new Insets(0, 0, 0, 10));
         mLabel.setWrapText(true);
         mLabel.setPrefWidth(150);
         mLabel.setTextAlignment(TextAlignment.CENTER);
+
+        setPadding(new Insets(0, 0, 0, 20));
 
         //add children
         getChildren().addAll(mBackgroundRectangle, mLabel);
