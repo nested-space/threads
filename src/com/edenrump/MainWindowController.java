@@ -148,7 +148,11 @@ public class MainWindowController implements Initializable {
 
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> {
-            if (depthGraphDisplay.requestClose()) Platform.exit();
+            if (programState == ProgramState.UNSAVED) {
+                if(cancelActionToSaveContent()) Platform.exit();
+            } else {
+                Platform.exit();
+            }
         });
 
         file.getItems().setAll(newFile, openFile, saveFile, close);
@@ -402,55 +406,8 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        //Start up a new map
-        VertexData startingNode = new VertexData("S.1.1 Nomenclature", 0, 0);
-        
-        VertexData internalDoc = new VertexData("INN / BAN / USAN / JAN\n", 1, 320000);
-        VertexData internalDocA = new VertexData("IUPAC Name", 1, 640000);
-        VertexData internalDocB = new VertexData("CAS Name", 1, 960000);
-        VertexData internalDocC = new VertexData("CAS Registry Number", 1, 1280000);
-        VertexData internalDocD = new VertexData("Other Names", 1, 1600000);
-        VertexData internalDocE = new VertexData("Company Code", 1, 1920000);
-
-        VertexData sourceDoc = new VertexData("Not Available Yet", 2, 320000);
-        VertexData sourceDocA = new VertexData("Acetic Acid", 2, 640000);
-        VertexData sourceDocB = new VertexData("Not Available Yet", 2, 960000);
-        VertexData sourceDocC = new VertexData("Not Available Yet", 2, 1280000);
-        VertexData sourceDocD = new VertexData("Not Available Yet", 2, 1600000);
-        VertexData sourceDocE = new VertexData("Alcohol", 2, 1920000);
-
-        internalDoc.addConnection(startingNode.getId());
-        internalDocA.addConnection(startingNode.getId());
-        internalDocB.addConnection(startingNode.getId());
-        internalDocC.addConnection(startingNode.getId());
-        internalDocD.addConnection(startingNode.getId());
-        internalDocE.addConnection(startingNode.getId());
-        sourceDoc.addConnection((internalDoc.getId()));
-        sourceDocA.addConnection((internalDocA.getId()));
-        sourceDocB.addConnection((internalDocB.getId()));
-        sourceDocC.addConnection((internalDocC.getId()));
-        sourceDocD.addConnection((internalDocD.getId()));
-        sourceDocE.addConnection((internalDocE.getId()));
-
-        startingNode.addConnection(internalDoc.getId());
-        startingNode.addConnection(internalDocA.getId());
-        startingNode.addConnection(internalDocB.getId());
-        startingNode.addConnection(internalDocC.getId());
-        startingNode.addConnection(internalDocD.getId());
-        startingNode.addConnection(internalDocE.getId());
-        internalDoc.addConnection((sourceDoc.getId()));
-        internalDocA.addConnection((sourceDocA.getId()));
-        internalDocB.addConnection((sourceDocB.getId()));
-        internalDocC.addConnection((sourceDocC.getId()));
-        internalDocD.addConnection((sourceDocD.getId()));
-        internalDocE.addConnection((sourceDocE.getId()));
-
-        List<VertexData> vertices = new ArrayList<>(Arrays.asList(
-                startingNode,
-                internalDoc, internalDocA, internalDocB, internalDocC, internalDocD, internalDocE,
-                sourceDoc, sourceDocA, sourceDocB, sourceDocC, sourceDocD, sourceDocE));
-
-        return new ThreadsData("New File", UUID.randomUUID().toString(), vertices);
+        File example = new File("res/examples/AceticAcid.wool");
+        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.wool"));
     }
 
     /**

@@ -692,7 +692,7 @@ public class DepthGraphDisplay {
     }
 
     /**
-     * Utility method to create a consistent column in the preparation display TODO: link prep title with real display title
+     * Utility method to create a consistent column in the preparation display
      *
      * @param nodeIds the nodes to be added to the column
      * @param title     the title of the column
