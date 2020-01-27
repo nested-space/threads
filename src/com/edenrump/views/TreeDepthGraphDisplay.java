@@ -10,13 +10,7 @@
 package com.edenrump.views;
 
 import javafx.geometry.HorizontalDirection;
-import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Class representing a display pane for a tree graph
@@ -46,6 +40,5 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay{
     public TreeDepthGraphDisplay(ScrollPane display) {
         super(display, HorizontalDirection.RIGHT);
     }
-
 
 }

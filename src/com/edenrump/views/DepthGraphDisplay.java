@@ -183,7 +183,7 @@ public class DepthGraphDisplay {
      *
      * @return a map of depth level to container nodes
      */
-    private PreparationDisplayMaps createNodeDisplay(List<VertexData> vertices) {
+    PreparationDisplayMaps createNodeDisplay(List<VertexData> vertices) {
         PreparationDisplayMaps pdm = new PreparationDisplayMaps();
         vertices.stream()
                 .map(VertexData::getDepth)
@@ -210,7 +210,7 @@ public class DepthGraphDisplay {
      * @param data the vertex data
      * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
      */
-    private DataAndNodes createNodes(VertexData data) {
+    DataAndNodes createNodes(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
         if (!data.getHyperlinkURL().equals("")) prepNode.addTag("url", data.getHyperlinkURL());
@@ -232,7 +232,7 @@ public class DepthGraphDisplay {
     }
 
     /**
-     * Utility method. Ensure vertex data is consistenly translated into a dispay object
+     * Utility method. Ensure vertex data is consistently translated into a dispay object
      *
      * @param v the vertex to display
      * @return a consistent node to display on the scene graph
@@ -411,31 +411,46 @@ public class DepthGraphDisplay {
         ContextMenu cm = new ContextMenu();
 
         MenuItem addDownstream = new MenuItem(plottingDirection == HorizontalDirection.LEFT ? "Add Node Right ->" : "<- Add Node Left");
-        addDownstream.setOnAction(event -> {
-            hasUnsavedContent.set(true);
-            int depth = idToNodeMap.get(id).getVertexData().getDepth();
-            VertexData vdNew = new VertexData("New Node", depth - 1, 0);
-            vdNew.addConnection(id);
-            for (VertexData vdSource : idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList())) {
-                if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
-            }
-            createNode(vdNew, id, Side.RIGHT);
-        });
+        addDownstream.setOnAction(event -> createVertex(new VertexData("New Node",
+                UUID.randomUUID().toString(),
+                Collections.singletonList(id),
+                idToNodeMap.get(id).getVertexData().getDepth() - 1,
+                0,
+                "")));
 
         MenuItem addUpstream = new MenuItem(plottingDirection == HorizontalDirection.LEFT ? "<- Add Node Left" : "Add Node Right ->");
-        addUpstream.setOnAction(event -> {
-            hasUnsavedContent.set(true);
-            int depth = idToNodeMap.get(id).getVertexData().getDepth();
-            VertexData vdNew = new VertexData("New Node", depth + 1, 0);
-            vdNew.addConnection(id);
-            for (VertexData vdSource : idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList())) {
-                if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
-            }
-            createNode(vdNew, id, Side.LEFT);
-        });
+        addUpstream.setOnAction(event -> createVertex(new VertexData("New Node",
+                UUID.randomUUID().toString(),
+                Collections.singletonList(id),
+                idToNodeMap.get(id).getVertexData().getDepth() + 1,
+                0,
+                "")));
 
         cm.getItems().addAll(addDownstream, addUpstream);
         return cm;
+    }
+
+    public void createVertex(VertexData data) {
+        hasUnsavedContent.set(true);
+
+        createNode(data);
+
+        //if node is connected to other nodes, reflect this connection in those nodes
+        data.getConnectedVertices().forEach(id -> {
+            idToNodeMap.get(id).getVertexData().addConnection(data.getId());
+            createEdge(idToNodeMap.get(data.getId()), idToNodeMap.get(id));
+        });
+
+        Platform.runLater(() -> {
+            PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
+            t.setOnFinished(actionEvent -> {
+                idToNodeMap.get(data.getId()).getDisplayNode().setLayoutX(ltsX(idToNodeMap.get(data.getId()).getPreparationNode()));
+                idToNodeMap.get(data.getId()).getDisplayNode().setLayoutY(ltsY(idToNodeMap.get(data.getId()).getPreparationNode()));
+                reconcilePrepAndDisplay(DELAY_TIME);
+            });
+            t.playFromStart();
+        });
+
     }
 
     /**
@@ -460,71 +475,57 @@ public class DepthGraphDisplay {
      * and refresh the display
      *
      * @param newNodeVertexData the data associated with the new vertex
-     * @param sourceVertexId    the node to which the new node should be linked. Logic is you cannot
-     * @param newNodeSide       the relative position (left or right) of the new vertex with respect to the source vertex
      */
-    private void createNode(VertexData newNodeVertexData, String sourceVertexId, Side newNodeSide) {
+    private void createNode(VertexData newNodeVertexData) {
         DataAndNodes newNodeData = createNodes(newNodeVertexData);
         newNodeData.getDisplayNode().setOpacity(0);
-
         preparationDisplayMap.put(newNodeData.getPreparationNode(), newNodeData.getDisplayNode());
         idToNodeMap.put(newNodeVertexData.getId(), newNodeData);
-
-        resetPreparationDisplay();
-
-        Node edge;
-        if (newNodeSide == Side.RIGHT && plottingDirection == HorizontalDirection.LEFT ||
-                newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.RIGHT) {
-            edge = createEdge((TitledContentPane) idToNodeMap.get(sourceVertexId).getDisplayNode(),
-                    (TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).getDisplayNode());
-        } else if (newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.LEFT ||
-                newNodeSide == Side.RIGHT && plottingDirection == HorizontalDirection.RIGHT) {
-            edge = createEdge((TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).getDisplayNode(),
-                    (TitledContentPane) idToNodeMap.get(sourceVertexId).getDisplayNode());
-        } else {
-            throw new IllegalStateException("Only upstream and downstream nodes are allowed. Unprocessable Side on node creation");
-        }
-        edge.setOpacity(0);
-
+        resetPreparationDisplay(idToNodeMap);
         displayOverlay.getChildren().add(newNodeData.getDisplayNode());
-        displayOverlay.getChildren().add(0, edge);
-
-        Platform.runLater(() -> {
-            PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
-            t.setOnFinished(actionEvent -> {
-                newNodeData.getDisplayNode().setLayoutX(ltsX(newNodeData.getPreparationNode()));
-                newNodeData.getDisplayNode().setLayoutY(ltsY(newNodeData.getPreparationNode()));
-                reconcilePrepAndDisplay(DELAY_TIME);
-            });
-            t.playFromStart();
-        });
     }
 
     /**
      * Create a node (line) which links two vertices in the display. Return the node.
      *
-     * @param startBox the vertex at the start of the line
-     * @param endBox   the vertex at the end of the line
+     * @param vertex1 the first vertex
+     * @param vertex2 the second vertex
      * @return a node that acts as an edge in the display
      */
-    private Node createEdge(TitledContentPane startBox, TitledContentPane endBox) {
-        CubicCurve newEdge = new CubicCurve();
-        newEdge.startXProperty().bind(startBox.layoutXProperty().add(startBox.widthProperty()));
-        newEdge.startYProperty().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
-        newEdge.endXProperty().bind(endBox.layoutXProperty());
-        newEdge.endYProperty().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
-        newEdge.controlX1Property().bind(startBox.layoutXProperty().add(startBox.widthProperty()).add(50));
-        newEdge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
-        newEdge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
-        newEdge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
-        newEdge.setStroke(Color.web("#003865"));
-        newEdge.setStrokeWidth(0.75);
-        newEdge.setStrokeLineCap(StrokeLineCap.ROUND);
-        newEdge.setFill(Color.TRANSPARENT);
+    private void createEdge(DataAndNodes vertex1, DataAndNodes vertex2) {
+        boolean v2_deeper_v1 = vertex2.getVertexData().getDepth() > vertex1.getVertexData().getDepth();
 
-        linkVertexToEdge(startBox, newEdge);
-        linkVertexToEdge(endBox, newEdge);
-        return newEdge;
+        Region startBox;
+        Region endBox;
+        if ((!v2_deeper_v1 && plottingDirection == HorizontalDirection.LEFT) || (v2_deeper_v1 && plottingDirection == HorizontalDirection.RIGHT)) {
+            startBox = (Region) vertex1.getDisplayNode();
+            endBox = (Region) vertex2.getDisplayNode();
+        } else if ((v2_deeper_v1 && plottingDirection == HorizontalDirection.LEFT) || (!v2_deeper_v1 && plottingDirection == HorizontalDirection.RIGHT)) {
+            startBox = (Region) vertex2.getDisplayNode();
+            endBox = (Region) vertex1.getDisplayNode();
+        } else {
+            throw new IllegalArgumentException("createEdge() doesn't support two nodes at equal depth (yet)"); //TODO: add support for nodes at equal depth.
+        }
+
+        CubicCurve edge = new CubicCurve();
+        edge.startXProperty().bind(startBox.layoutXProperty().add(startBox.widthProperty()));
+        edge.startYProperty().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
+        edge.endXProperty().bind(endBox.layoutXProperty());
+        edge.endYProperty().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
+        edge.controlX1Property().bind(startBox.layoutXProperty().add(startBox.widthProperty()).add(50));
+        edge.controlY1Property().bind(startBox.layoutYProperty().add(startBox.heightProperty().divide(2)));
+        edge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
+        edge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
+        edge.setStroke(Color.web("#003865"));
+        edge.setStrokeWidth(0.75);
+        edge.setStrokeLineCap(StrokeLineCap.ROUND);
+        edge.setFill(Color.TRANSPARENT);
+
+        edge.setOpacity(0);
+        displayOverlay.getChildren().add(0, edge);
+
+        linkVertexToEdge(startBox, edge);
+        linkVertexToEdge(endBox, edge);
     }
 
     /**
@@ -561,7 +562,7 @@ public class DepthGraphDisplay {
         selectedVertices.clear();
         resetHighlightingOnAllNodes();
 
-        resetPreparationDisplay(); //also removes from depthToPrepContainer and preparationContainer
+        resetPreparationDisplay(idToNodeMap); //also removes from depthToPrepContainer and preparationContainer
 
         Platform.runLater(() -> {
             PauseTransition pause = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
@@ -584,7 +585,7 @@ public class DepthGraphDisplay {
 
         if (idToNodeMap.get(id).getVertexData().getDepth() != vertex.getDepth()) {
             idToNodeMap.get(id).getVertexData().update(vertex);
-            resetPreparationDisplay();
+            resetPreparationDisplay(idToNodeMap);
         } else {
             idToNodeMap.get(id).getVertexData().update(vertex);
         }
@@ -695,7 +696,7 @@ public class DepthGraphDisplay {
      * Utility method to create a consistent column in the preparation display
      *
      * @param nodeIds the nodes to be added to the column
-     * @param title     the title of the column
+     * @param title   the title of the column
      * @return a consistently-styled VBox for use in the preparation display.
      */
     VBox createPrepColumn(List<String> nodeIds, String title) {
@@ -744,18 +745,18 @@ public class DepthGraphDisplay {
     /**
      * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
      */
-    void resetPreparationDisplay() {
+    void resetPreparationDisplay(Map<String, DataAndNodes> vertexMap) {
         preparationContainer.getChildren().clear();
         depthToPrepContainerMap.clear();
 
-        idToNodeMap.values().stream()
+        vertexMap.values().stream()
                 .map(data -> data.getVertexData().getDepth())
                 .distinct()
                 .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
                 .collect(Collectors.toList())
                 .forEach(depth -> {
                     List<String> prepNodes = new ArrayList<>();
-                    idToNodeMap.values().stream()
+                    vertexMap.values().stream()
                             .filter(v -> v.getVertexData().getDepth() == depth)
                             .forEach(dn -> prepNodes.add(dn.getVertexData().getId()));
 
@@ -825,32 +826,8 @@ public class DepthGraphDisplay {
         displayOverlay.getChildren().addAll(preparationDisplayMap.values());
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
-        //Load the preparation container with nodes
-        resetPreparationDisplay();
-
-        //add edges
-        List<VertexData> unvisitedNodes = getUpstreamLeaves(idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
-        List<String> visitedNodes = new ArrayList<>();
-        while (unvisitedNodes.size() > 0) {
-            VertexData currentVertex = unvisitedNodes.remove(0);
-            visitedNodes.add(currentVertex.getId());
-
-            currentVertex.getConnectedVertices().stream()
-                    .filter(id -> !visitedNodes.contains(id))
-                    .forEach(id -> unvisitedNodes.add(idToNodeMap.get(id).getVertexData()));
-
-            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(currentVertex.getId()).getDisplayNode();
-            currentVertex.getConnectedVertices().stream()
-                    .map(id -> idToNodeMap.get(id).getVertexData())
-                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
-                    .forEach(endVertex -> {
-                        TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(endVertex.getId()).getDisplayNode();
-                        Node edge = createEdge(dStart, dEnd);
-                        edge.setOpacity(0);
-                        displayOverlay.getChildren().add(0, edge);
-
-                    });
-        }
+        resetPreparationDisplay(idToNodeMap);
+        addEdges(idToNodeMap);
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
         Platform.runLater(() -> {
@@ -874,6 +851,27 @@ public class DepthGraphDisplay {
         });
     }
 
+    void addEdges(Map<String, DataAndNodes> vertexMap) {
+        //add edges
+        List<VertexData> unvisitedNodes = getUpstreamLeaves(vertexMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
+        List<String> visitedNodes = new ArrayList<>();
+        while (unvisitedNodes.size() > 0) {
+            VertexData currentVertex = unvisitedNodes.remove(0);
+            visitedNodes.add(currentVertex.getId());
+
+            currentVertex.getConnectedVertices().stream()
+                    .filter(id -> !visitedNodes.contains(id))
+                    .forEach(id -> unvisitedNodes.add(vertexMap.get(id).getVertexData()));
+
+            currentVertex.getConnectedVertices().stream()
+                    .map(id -> vertexMap.get(id).getVertexData())
+                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
+                    .forEach(endVertex -> {
+                        createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId()));
+                    });
+        }
+    }
+
     /**
      * Clear all objects from the display pane and the preparation pane.
      */
@@ -885,7 +883,7 @@ public class DepthGraphDisplay {
     /**
      * Clear the current display and return it to an unloaded state
      */
-    private void clearNodes() {
+    void clearNodes() {
         preparationContainer.getChildren().clear();
         displayOverlay.getChildren().clear();
     }
@@ -958,7 +956,7 @@ public class DepthGraphDisplay {
      * Class representing the maps required to create a preparation section of the scene graph and mimic it in
      * a displayed portion of the scene graph
      */
-    private static class PreparationDisplayMaps {
+    static class PreparationDisplayMaps {
         Map<Node, Node> prepToDisplay = new HashMap<>();
         Map<Integer, Node> depthToPrepcontainer = new HashMap<>();
         Map<String, DataAndNodes> idNodeMap = new HashMap<>();

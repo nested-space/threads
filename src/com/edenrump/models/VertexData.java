@@ -87,7 +87,7 @@ public class VertexData implements Comparable<VertexData> {
     public VertexData(String name, String id, List<String> connected, int depth, int priority, String hyperlinkURL) {
         this.name = name;
         this.id = new ReadOnlyStringWrapper(id);
-        this.connectedVertices = connected;
+        this.connectedVertices = new ArrayList<>(connected);
         this.depth = depth;
         this.priority = priority;
         this.hyperlinkURL = hyperlinkURL == null ? "" : hyperlinkURL;
@@ -145,10 +145,10 @@ public class VertexData implements Comparable<VertexData> {
     /**
      * Add an integer id to the list of upstream nodes
      *
-     * @param upstream the id of the node to be added
+     * @param connection the id of the node to be added
      */
-    public void addConnection(String upstream) {
-        this.connectedVertices.add(upstream);
+    public void addConnection(String connection) {
+        if(!this.connectedVertices.contains(connection)) this.connectedVertices.add(connection);
     }
 
     /**
