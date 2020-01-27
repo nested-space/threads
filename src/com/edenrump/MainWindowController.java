@@ -13,11 +13,10 @@ import com.edenrump.config.Defaults;
 import com.edenrump.loaders.JSONLoader;
 import com.edenrump.models.ThreadsData;
 import com.edenrump.models.VertexData;
-import com.edenrump.views.DepthOrderedLinkMapDisplay;
-import javafx.animation.Timeline;
+import com.edenrump.views.DepthGraphDisplay;
+import com.edenrump.views.TreeDepthGraphDisplay;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -63,7 +62,7 @@ public class MainWindowController implements Initializable {
     /**
      * the display pane of the process.
      */
-    private DepthOrderedLinkMapDisplay depthOrderedLinkMapDisplay;
+    private DepthGraphDisplay depthGraphDisplay;
 
     /**
      * Top layer of application, base pane
@@ -87,8 +86,8 @@ public class MainWindowController implements Initializable {
     public void initialize(URL url, ResourceBundle resourceBundle) {
         addMainMenu(borderBase);
 
-        depthOrderedLinkMapDisplay = new DepthOrderedLinkMapDisplay(displayWrapper);
-        BooleanProperty unsavedInDisplay = depthOrderedLinkMapDisplay.hasUnsavedContentProperty();
+        depthGraphDisplay = new TreeDepthGraphDisplay(displayWrapper);
+        BooleanProperty unsavedInDisplay = depthGraphDisplay.hasUnsavedContentProperty();
         unsavedInDisplay.addListener((obs, o, n) ->{
             if(n){
                 registerChange();
@@ -96,29 +95,29 @@ public class MainWindowController implements Initializable {
         });
         createNew();
 
-        ObservableList<String> selectedVertices = depthOrderedLinkMapDisplay.getSelectedVerticesObservableList();
+        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVerticesObservableList();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             c.next();
-            setInfoPaneComments(c.getList().stream().map(id -> depthOrderedLinkMapDisplay.getVertex(id).get()).collect(Collectors.toList()));
+            setInfoPaneComments(c.getList().stream().map(id -> depthGraphDisplay.getVertex(id).get()).collect(Collectors.toList()));
         });
 
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE) {
                 if (selectedVertices.size() == 1) {
-                    depthOrderedLinkMapDisplay.removeVertex(selectedVertices.get(0));
+                    depthGraphDisplay.removeVertex(selectedVertices.get(0));
                 } else if (selectedVertices.size() > 1) {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Multiple vertex deletion");
                     alert.setHeaderText("Multiple vertices are selected");
                     alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
                     alert.showAndWait();
-                    new ArrayList<>(selectedVertices).forEach(id -> depthOrderedLinkMapDisplay.removeVertex(id));
+                    new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.removeVertex(id));
                 }
             } else if (key.getCode() == KeyCode.ESCAPE) {
-                depthOrderedLinkMapDisplay.deselectAll();
+                depthGraphDisplay.deselectAll();
             } else if (key.getCode() == KeyCode.A && key.isControlDown()) {
-                depthOrderedLinkMapDisplay.selectAll();
+                depthGraphDisplay.selectAll();
             }
         }));
     }
@@ -149,7 +148,7 @@ public class MainWindowController implements Initializable {
 
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> {
-            if (depthOrderedLinkMapDisplay.requestClose()) Platform.exit();
+            if (depthGraphDisplay.requestClose()) Platform.exit();
         });
 
         file.getItems().setAll(newFile, openFile, saveFile, close);
@@ -173,7 +172,7 @@ public class MainWindowController implements Initializable {
             file = new File(file.getAbsolutePath() + ".wool");
         }
 
-        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthOrderedLinkMapDisplay.getVertexInfo()), file);
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getVertexInfo()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
@@ -206,8 +205,8 @@ public class MainWindowController implements Initializable {
             fileName = loaded.getName();
             fileID = loaded.getId();
 
-            depthOrderedLinkMapDisplay.create(vertexInfoInMemory);
-            depthOrderedLinkMapDisplay.show();
+            depthGraphDisplay.create(vertexInfoInMemory);
+            depthGraphDisplay.show();
 
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
             setInfoPaneComments(new ArrayList<>());
@@ -346,7 +345,7 @@ public class MainWindowController implements Initializable {
         titleValue.setText(titleEdit.getText());
         hyperlinkValue.setText(hyperlinkEdit.getText() == null ? "(none)" : vertex.getHyperlinkURL());
 
-        depthOrderedLinkMapDisplay.updateVertex(vertex.getId(), vertex);
+        depthGraphDisplay.updateVertex(vertex.getId(), vertex);
 
     }
 
@@ -390,8 +389,8 @@ public class MainWindowController implements Initializable {
         fileName = startingState.getName();
         fileID = startingState.getId();
 
-        depthOrderedLinkMapDisplay.create(vertexInfoInMemory);
-        depthOrderedLinkMapDisplay.show();
+        depthGraphDisplay.create(vertexInfoInMemory);
+        depthGraphDisplay.show();
 
         setInfoPaneTitle(vertexInfoInMemory.size(), 0);
         setInfoPaneComments(new ArrayList<>());
@@ -426,7 +425,7 @@ public class MainWindowController implements Initializable {
      */
     private void clearAll() {
         vertexInfoInMemory.clear();
-        depthOrderedLinkMapDisplay.clearAll();
+        depthGraphDisplay.clearAll();
 
         programState = ProgramState.CLOSED;
         if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));

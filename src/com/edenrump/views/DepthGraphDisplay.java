@@ -10,6 +10,7 @@
 package com.edenrump.views;
 
 import com.edenrump.config.Defaults;
+import com.edenrump.graph.DataAndNodes;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.components.TitledContentPane;
 import javafx.animation.KeyFrame;
@@ -22,6 +23,7 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -38,12 +40,25 @@ import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
-import static com.edenrump.config.Defaults.DELAY_TIME;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class DepthOrderedLinkMapDisplay {
+import static com.edenrump.config.Defaults.DELAY_TIME;
+
+/**
+ * Class representing a display pane for a graph
+ * <p>
+ * It contains vertex and edge information necessary to display a graph
+ * It contains separate preparation and display portions of the scene graph.
+ * Changes to vertex position in the graph are animated
+ * <p>
+ * Animation is achieved by piggy-backing on JavaFX's own layout system.
+ * It allows JavaFX to calculate layout bounds in the preparation area, and then animating
+ * nodes in the display area to move from their current layout positions to the updated ones.
+ */
+public class DepthGraphDisplay {
+
+    private HorizontalDirection plottingDirection = HorizontalDirection.LEFT;
 
     /**
      * Scrollpane that encapsulates all process preparation and display containers.
@@ -105,7 +120,9 @@ public class DepthOrderedLinkMapDisplay {
      *
      * @param display the pane on which the processdisplay should be rendered
      */
-    public DepthOrderedLinkMapDisplay(ScrollPane display) {
+    public DepthGraphDisplay(ScrollPane display, HorizontalDirection plottingDirection) {
+        this.plottingDirection = plottingDirection;
+
         linkMapDisplay = display;
         display.setPannable(true);
         linkMapDisplay.setFitToHeight(true);
@@ -151,7 +168,7 @@ public class DepthOrderedLinkMapDisplay {
      * @return a read-only version of the vertex
      */
     public ReadOnlyObjectWrapper<VertexData> getVertex(String id) {
-        return idToNodeMap.get(id).vertexData.readOnly();
+        return idToNodeMap.get(id).getVertexData().readOnly();
     }
 
     /**
@@ -171,9 +188,9 @@ public class DepthOrderedLinkMapDisplay {
                             .filter(v -> v.getDepth() == depth)
                             .forEach(vertexData -> {
                                 DataAndNodes nodeData = createNodes(vertexData);
-                                prepNodes.add(nodeData.preparationNode);
+                                prepNodes.add(nodeData.getPreparationNode());
                                 pdm.idNodeMap.put(vertexData.getId(), nodeData);
-                                pdm.prepToDisplay.put(nodeData.preparationNode, nodeData.displayNode);
+                                pdm.prepToDisplay.put(nodeData.getPreparationNode(), nodeData.getDisplayNode());
                             });
                     pdm.depthToPrepcontainer.put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
                 });
@@ -237,11 +254,11 @@ public class DepthOrderedLinkMapDisplay {
             return;
         }
 
-        VertexData vertexClicked = idToNodeMap.get(vertexId).vertexData;
+        VertexData vertexClicked = idToNodeMap.get(vertexId).getVertexData();
         if (event.isShiftDown() && lastSelected != null) {
             List<VertexData> vertices = findShortestPath(lastSelected, vertexClicked,
                     idToNodeMap.values().stream()
-                            .map(data -> data.vertexData)
+                            .map(DataAndNodes::getVertexData)
                             .collect(Collectors.toList()));
             selectedVertices.setAll(vertices.stream().map(VertexData::getId).collect(Collectors.toList()));
         } else if (event.isControlDown()) {
@@ -348,7 +365,7 @@ public class DepthOrderedLinkMapDisplay {
      */
     private void resetHighlightingOnAllNodes() {
         for (String id : idToNodeMap.keySet()) {
-            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).displayNode;
+            TitledContentPane displayNode = (TitledContentPane) idToNodeMap.get(id).getDisplayNode();
             displayNode.resetHighlighting();
         }
     }
@@ -358,7 +375,7 @@ public class DepthOrderedLinkMapDisplay {
      */
     private void highlightSelectedNodes() {
         selectedVertices.stream()
-                .map(id -> (TitledContentPane) idToNodeMap.get(id).displayNode)
+                .map(id -> (TitledContentPane) idToNodeMap.get(id).getDisplayNode())
                 .forEach(pane -> {
                     pane.highlight();
                     if (selectedVertices.size() == 1) {
@@ -368,9 +385,9 @@ public class DepthOrderedLinkMapDisplay {
                     }
                 });
 
-        idToNodeMap.values().stream().map(data -> data.vertexData) //all vertices
+        idToNodeMap.values().stream().map(DataAndNodes::getVertexData) //all vertices
                 .filter(v -> !selectedVertices.contains(v.getId()))
-                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).displayNode)
+                .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).getDisplayNode())
                 .forEach(pane -> {
                     pane.lowlight();
                     pane.setOnContextMenuRequested(null);
@@ -389,10 +406,10 @@ public class DepthOrderedLinkMapDisplay {
         MenuItem addDownstream = new MenuItem("Add Downstream Node");
         addDownstream.setOnAction(event -> {
             hasUnsavedContent.set(true);
-            int depth = idToNodeMap.get(id).vertexData.getDepth();
+            int depth = idToNodeMap.get(id).getVertexData().getDepth();
             VertexData vdNew = new VertexData("New Node", depth - 1, 0);
             vdNew.addConnection(id);
-            for (VertexData vdSource : idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList())) {
+            for (VertexData vdSource : idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList())) {
                 if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
             }
             createNode(vdNew, id, Side.RIGHT);
@@ -401,10 +418,10 @@ public class DepthOrderedLinkMapDisplay {
         MenuItem addUpstream = new MenuItem("Add Upstream Node");
         addUpstream.setOnAction(event -> {
             hasUnsavedContent.set(true);
-            int depth = idToNodeMap.get(id).vertexData.getDepth();
+            int depth = idToNodeMap.get(id).getVertexData().getDepth();
             VertexData vdNew = new VertexData("New Node", depth + 1, 0);
             vdNew.addConnection(id);
-            for (VertexData vdSource : idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList())) {
+            for (VertexData vdSource : idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList())) {
                 if (vdSource.getId().equals(id)) vdSource.addConnection(vdNew.getId());
             }
             createNode(vdNew, id, Side.LEFT);
@@ -441,33 +458,35 @@ public class DepthOrderedLinkMapDisplay {
      */
     private void createNode(VertexData newNodeVertexData, String sourceVertexId, Side newNodeSide) {
         DataAndNodes newNodeData = createNodes(newNodeVertexData);
-        newNodeData.displayNode.setOpacity(0);
+        newNodeData.getDisplayNode().setOpacity(0);
 
-        preparationDisplayMap.put(newNodeData.preparationNode, newNodeData.displayNode);
+        preparationDisplayMap.put(newNodeData.getPreparationNode(), newNodeData.getDisplayNode());
         idToNodeMap.put(newNodeVertexData.getId(), newNodeData);
 
         resetPreparationDisplay();
 
-        Node edge;
-        if (newNodeSide == Side.RIGHT) {
-            edge = createEdge((TitledContentPane) idToNodeMap.get(sourceVertexId).displayNode,
-                    (TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).displayNode);
-        } else if (newNodeSide == Side.LEFT) {
-            edge = createEdge((TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).displayNode,
-                    (TitledContentPane) idToNodeMap.get(sourceVertexId).displayNode);
+        Node edge; //TODO: change edge start/finish depending on depth direction
+        if (newNodeSide == Side.RIGHT && plottingDirection == HorizontalDirection.LEFT ||
+                newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.RIGHT ) {
+            edge = createEdge((TitledContentPane) idToNodeMap.get(sourceVertexId).getDisplayNode(),
+                    (TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).getDisplayNode());
+        } else if (newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.LEFT ||
+                newNodeSide == Side.RIGHT && plottingDirection == HorizontalDirection.RIGHT) {
+            edge = createEdge((TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).getDisplayNode(),
+                    (TitledContentPane) idToNodeMap.get(sourceVertexId).getDisplayNode());
         } else {
             throw new IllegalStateException("Only upstream and downstream nodes are allowed. Unprocessable Side on node creation");
         }
         edge.setOpacity(0);
 
-        displayOverlay.getChildren().add(newNodeData.displayNode);
+        displayOverlay.getChildren().add(newNodeData.getDisplayNode());
         displayOverlay.getChildren().add(0, edge);
 
         Platform.runLater(() -> {
             PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
-                newNodeData.displayNode.setLayoutX(ltsX(newNodeData.preparationNode));
-                newNodeData.displayNode.setLayoutY(ltsY(newNodeData.preparationNode));
+                newNodeData.getDisplayNode().setLayoutX(ltsX(newNodeData.getPreparationNode()));
+                newNodeData.getDisplayNode().setLayoutY(ltsY(newNodeData.getPreparationNode()));
                 reconcilePrepAndDisplay(DELAY_TIME);
             });
             t.playFromStart();
@@ -522,14 +541,14 @@ public class DepthOrderedLinkMapDisplay {
         hasUnsavedContent.set(true);
 
         DataAndNodes toRemove = idToNodeMap.get(id);
-        toBeRemovedOnNextPass.add(toRemove.displayNode);
-        toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(toRemove.displayNode));
+        toBeRemovedOnNextPass.add(toRemove.getDisplayNode());
+        toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(toRemove.getDisplayNode()));
 
-        preparationDisplayMap.remove(toRemove.preparationNode);
+        preparationDisplayMap.remove(toRemove.getPreparationNode());
         idToNodeMap.remove(id);
 
         idToNodeMap.values().stream()
-                .map(data -> data.vertexData)
+                .map(DataAndNodes::getVertexData)
                 .forEach(vertex -> vertex.getConnectedVertices().remove(id));
 
         selectedVertices.clear();
@@ -553,14 +572,14 @@ public class DepthOrderedLinkMapDisplay {
     public void updateVertex(String id, VertexData vertex) {
         hasUnsavedContent.set(true);
 
-        updateNode(idToNodeMap.get(id).preparationNode, vertex);
-        updateNode(idToNodeMap.get(id).displayNode, vertex);
+        updateNode(idToNodeMap.get(id).getPreparationNode(), vertex);
+        updateNode(idToNodeMap.get(id).getDisplayNode(), vertex);
 
-        if (idToNodeMap.get(id).vertexData.getDepth() != vertex.getDepth()) {
-            idToNodeMap.get(id).vertexData.update(vertex);
+        if (idToNodeMap.get(id).getVertexData().getDepth() != vertex.getDepth()) {
+            idToNodeMap.get(id).getVertexData().update(vertex);
             resetPreparationDisplay();
         } else {
-            idToNodeMap.get(id).vertexData.update(vertex);
+            idToNodeMap.get(id).getVertexData().update(vertex);
         }
         Platform.runLater(() -> {
             PauseTransition pause = new PauseTransition(Duration.millis(100));
@@ -571,6 +590,7 @@ public class DepthOrderedLinkMapDisplay {
 
     /**
      * Return whether the display has unsaved content.
+     *
      * @return whether the display has unsaved content
      */
     public boolean isHasUnsavedContent() {
@@ -579,6 +599,7 @@ public class DepthOrderedLinkMapDisplay {
 
     /**
      * Return the property associated with content saving
+     *
      * @return return a property that represents whether the display contains unsaved content
      */
     public BooleanProperty hasUnsavedContentProperty() {
@@ -587,6 +608,7 @@ public class DepthOrderedLinkMapDisplay {
 
     /**
      * Set the unsavedContent property to the desired value
+     *
      * @param hasUnsavedContent whether the dispaly has unsaved content
      */
     public void setHasUnsavedContent(boolean hasUnsavedContent) {
@@ -596,6 +618,7 @@ public class DepthOrderedLinkMapDisplay {
     /**
      * Update the node n with vertex information v. This method does not check whether the node and vertex
      * are correctly linked (i.e. using the idNodeMap). Callers should check that the correct node has been selected
+     *
      * @param n the node to update
      * @param v the vertex containing the information to place inside the node.
      */
@@ -622,13 +645,23 @@ public class DepthOrderedLinkMapDisplay {
      * @return a list of nodes with no upstream linkages
      */
     private List<VertexData> getUpstreamLeaves(List<VertexData> vertexDataList) {
-        return vertexDataList
-                .stream()
-                .filter(v -> v.getDepth() == Collections.max(vertexDataList
-                        .stream()
-                        .map(VertexData::getDepth)
-                        .collect(Collectors.toList())))
-                .collect(Collectors.toList());
+        if(plottingDirection == HorizontalDirection.LEFT){
+            return vertexDataList
+                    .stream()
+                    .filter(v -> v.getDepth() == Collections.max(vertexDataList
+                            .stream()
+                            .map(VertexData::getDepth)
+                            .collect(Collectors.toList())))
+                    .collect(Collectors.toList());
+        } else {
+            return vertexDataList
+                    .stream()
+                    .filter(v -> v.getDepth() == Collections.min(vertexDataList
+                            .stream()
+                            .map(VertexData::getDepth)
+                            .collect(Collectors.toList())))
+                    .collect(Collectors.toList());
+        }
     }
 
     /**
@@ -658,7 +691,7 @@ public class DepthOrderedLinkMapDisplay {
      * @param title     the title of the column
      * @return a consistently-styled VBox for use in the preparation display.
      */
-    private VBox createPrepColumn(List<Node> prepNodes, String title) {
+    VBox createPrepColumn(List<Node> prepNodes, String title) {
         VBox container = new VBox();
         container.setAlignment(Pos.TOP_CENTER);
         container.setSpacing(25);
@@ -674,20 +707,20 @@ public class DepthOrderedLinkMapDisplay {
     /**
      * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
      */
-    private void resetPreparationDisplay() {
+    void resetPreparationDisplay() {
         preparationContainer.getChildren().clear();
         depthToPrepContainerMap.clear();
 
         idToNodeMap.values().stream()
-                .map(data -> data.vertexData.getDepth())
+                .map(data -> data.getVertexData().getDepth())
                 .distinct()
-                .sorted(Comparator.reverseOrder())
+                .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
                 .collect(Collectors.toList())
                 .forEach(depth -> {
                     List<Node> prepNodes = new ArrayList<>();
                     idToNodeMap.values().stream()
-                            .filter(v -> v.vertexData.getDepth() == depth)
-                            .forEach(dn -> prepNodes.add(dn.preparationNode));
+                            .filter(v -> v.getVertexData().getDepth() == depth)
+                            .forEach(dn -> prepNodes.add(dn.getPreparationNode()));
 
                     depthToPrepContainerMap
                             .put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
@@ -750,7 +783,7 @@ public class DepthOrderedLinkMapDisplay {
         resetPreparationDisplay();
 
         //add edges
-        List<VertexData> unvisitedNodes = getUpstreamLeaves(idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList()));
+        List<VertexData> unvisitedNodes = getUpstreamLeaves(idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
         List<String> visitedNodes = new ArrayList<>();
         while (unvisitedNodes.size() > 0) {
             VertexData currentVertex = unvisitedNodes.remove(0);
@@ -758,14 +791,14 @@ public class DepthOrderedLinkMapDisplay {
 
             currentVertex.getConnectedVertices().stream()
                     .filter(id -> !visitedNodes.contains(id))
-                    .forEach(id -> unvisitedNodes.add(idToNodeMap.get(id).vertexData));
+                    .forEach(id -> unvisitedNodes.add(idToNodeMap.get(id).getVertexData()));
 
-            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(currentVertex.getId()).displayNode;
+            TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(currentVertex.getId()).getDisplayNode();
             currentVertex.getConnectedVertices().stream()
-                    .map(id -> idToNodeMap.get(id).vertexData)
-                    .filter(endVertex -> endVertex.getDepth() < currentVertex.getDepth())
+                    .map(id -> idToNodeMap.get(id).getVertexData())
+                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
                     .forEach(endVertex -> {
-                        TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(endVertex.getId()).displayNode;
+                        TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(endVertex.getId()).getDisplayNode();
                         Node edge = createEdge(dStart, dEnd);
                         edge.setOpacity(0);
                         displayOverlay.getChildren().add(0, edge);
@@ -836,10 +869,11 @@ public class DepthOrderedLinkMapDisplay {
      * Return all VertexData currently cached in the display. Does not check whether nodes are currently dispalyed
      * (this functionality is not be default supported anyway, but extensions of this class should override this method
      * if they wanted to implement node-hiding
+     *
      * @return all VertexData currently cached in the display
      */
     public List<VertexData> getVertexInfo() {
-        return idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList());
+        return idToNodeMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList());
     }
 
     /**
@@ -863,7 +897,7 @@ public class DepthOrderedLinkMapDisplay {
      * Select all nodes
      */
     public void selectAll() {
-        selectedVertices.setAll(idToNodeMap.values().stream().map(dataAndNodes -> dataAndNodes.vertexData.getId()).collect(Collectors.toList()));
+        selectedVertices.setAll(idToNodeMap.values().stream().map(dataAndNodes -> dataAndNodes.getVertexData().getId()).collect(Collectors.toList()));
         highlightSelectedNodes();
 
     }
@@ -876,22 +910,6 @@ public class DepthOrderedLinkMapDisplay {
         Map<Node, Node> prepToDisplay = new HashMap<>();
         Map<Integer, Node> depthToPrepcontainer = new HashMap<>();
         Map<String, DataAndNodes> idNodeMap = new HashMap<>();
-    }
-
-    /**
-     * Class representing the information necessary to link the vertex data with its preparation node and its
-     * living node in the scene graph.
-     */
-    private static class DataAndNodes {
-        VertexData vertexData;
-        Node preparationNode;
-        Node displayNode;
-
-        DataAndNodes(VertexData vd, Node p, Node d) {
-            this.vertexData = vd;
-            this.preparationNode = p;
-            this.displayNode = d;
-        }
     }
 
     /**
@@ -926,5 +944,22 @@ public class DepthOrderedLinkMapDisplay {
             return Integer.compare(this.distance, other.distance);
         }
     }
+
+    /* ****************************************************************************************************************
+     *                                                       GETTERS AND SETTERS
+     **************************************************************************************************************** */
+
+    Map<Node, Node> getPreparationDisplayMap() {
+        return preparationDisplayMap;
+    }
+
+    Map<Integer, Node> getDepthToPrepContainerMap() {
+        return depthToPrepContainerMap;
+    }
+
+    Map<String, DataAndNodes> getIdToNodeMap() {
+        return idToNodeMap;
+    }
+
 
 }
