@@ -16,6 +16,8 @@ import com.edenrump.models.VertexData;
 import com.edenrump.views.DepthOrderedLinkMapDisplay;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -86,6 +88,12 @@ public class MainWindowController implements Initializable {
         addMainMenu(borderBase);
 
         depthOrderedLinkMapDisplay = new DepthOrderedLinkMapDisplay(displayWrapper);
+        BooleanProperty unsavedInDisplay = depthOrderedLinkMapDisplay.hasUnsavedContentProperty();
+        unsavedInDisplay.addListener((obs, o, n) ->{
+            if(n){
+                registerChange();
+            }
+        });
         createNew();
 
         ObservableList<String> selectedVertices = depthOrderedLinkMapDisplay.getSelectedVerticesObservableList();
@@ -114,8 +122,6 @@ public class MainWindowController implements Initializable {
             }
         }));
     }
-
-    private Timeline infoPaneTimeline = new Timeline();
 
     /**
      * The main menu for the application
@@ -184,12 +190,13 @@ public class MainWindowController implements Initializable {
      * Method attempts to load the file, if successful displays the information, if unsuccessful, prompts user
      */
     private void loadFile() {
+        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Resource File");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
         File file = fileChooser.showOpenDialog(stage.getScene().getWindow());
         if (file == null) return;
-        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
 
         ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
 
@@ -205,6 +212,8 @@ public class MainWindowController implements Initializable {
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
             setInfoPaneComments(new ArrayList<>());
         }
+
+        registerChange();
     }
 
     /**

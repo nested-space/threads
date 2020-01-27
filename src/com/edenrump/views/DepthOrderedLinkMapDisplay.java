@@ -17,7 +17,9 @@ import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -78,6 +80,11 @@ public class DepthOrderedLinkMapDisplay {
      * A list of nodes that are being prepared for removal from the display pane on the next pass
      */
     private List<Node> toBeRemovedOnNextPass = new ArrayList<>();
+    /**
+     * Whether the display currently has content that is unsaved. Modification of the display switches the flag to
+     * true (i.e. is unsaved). Controllers using this display should manually switch the flag back upon file save
+     */
+    private BooleanProperty hasUnsavedContent = new SimpleBooleanProperty(false);
 
     /**
      * A map of IDs to preparation and display nodes.
@@ -381,6 +388,7 @@ public class DepthOrderedLinkMapDisplay {
 
         MenuItem addDownstream = new MenuItem("Add Downstream Node");
         addDownstream.setOnAction(event -> {
+            hasUnsavedContent.set(true);
             int depth = idToNodeMap.get(id).vertexData.getDepth();
             VertexData vdNew = new VertexData("New Node", depth - 1, 0);
             vdNew.addConnection(id);
@@ -392,6 +400,7 @@ public class DepthOrderedLinkMapDisplay {
 
         MenuItem addUpstream = new MenuItem("Add Upstream Node");
         addUpstream.setOnAction(event -> {
+            hasUnsavedContent.set(true);
             int depth = idToNodeMap.get(id).vertexData.getDepth();
             VertexData vdNew = new VertexData("New Node", depth + 1, 0);
             vdNew.addConnection(id);
@@ -413,9 +422,11 @@ public class DepthOrderedLinkMapDisplay {
      */
     private ContextMenu singleSelectedVertexContextMenu(String id) {
         ContextMenu cm = standardVertexContextMenu(id);
-        MenuItem delete = new MenuItem("Delete (currently not live)");
-        MenuItem edit = new MenuItem("Edit (currently not live)");
-        cm.getItems().addAll(delete, edit);
+        MenuItem delete = new MenuItem("Delete");
+
+        delete.setOnAction(event -> removeVertex(id));
+
+        cm.getItems().addAll(delete);
         return cm;
     }
 
@@ -508,6 +519,8 @@ public class DepthOrderedLinkMapDisplay {
      * @param id the id of the vertex to be removed
      */
     public void removeVertex(String id) {
+        hasUnsavedContent.set(true);
+
         DataAndNodes toRemove = idToNodeMap.get(id);
         toBeRemovedOnNextPass.add(toRemove.displayNode);
         toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(toRemove.displayNode));
@@ -538,6 +551,8 @@ public class DepthOrderedLinkMapDisplay {
      * @param vertex the vertexData object containing the updated information
      */
     public void updateVertex(String id, VertexData vertex) {
+        hasUnsavedContent.set(true);
+
         updateNode(idToNodeMap.get(id).preparationNode, vertex);
         updateNode(idToNodeMap.get(id).displayNode, vertex);
 
@@ -554,6 +569,36 @@ public class DepthOrderedLinkMapDisplay {
         });
     }
 
+    /**
+     * Return whether the display has unsaved content.
+     * @return whether the display has unsaved content
+     */
+    public boolean isHasUnsavedContent() {
+        return hasUnsavedContent.get();
+    }
+
+    /**
+     * Return the property associated with content saving
+     * @return return a property that represents whether the display contains unsaved content
+     */
+    public BooleanProperty hasUnsavedContentProperty() {
+        return hasUnsavedContent;
+    }
+
+    /**
+     * Set the unsavedContent property to the desired value
+     * @param hasUnsavedContent whether the dispaly has unsaved content
+     */
+    public void setHasUnsavedContent(boolean hasUnsavedContent) {
+        this.hasUnsavedContent.set(hasUnsavedContent);
+    }
+
+    /**
+     * Update the node n with vertex information v. This method does not check whether the node and vertex
+     * are correctly linked (i.e. using the idNodeMap). Callers should check that the correct node has been selected
+     * @param n the node to update
+     * @param v the vertex containing the information to place inside the node.
+     */
     private void updateNode(Node n, VertexData v) {
         if (n instanceof TitledContentPane) {
             TitledContentPane tcp = (TitledContentPane) n;
@@ -787,6 +832,12 @@ public class DepthOrderedLinkMapDisplay {
         recastDisplayFromCachedData();
     }
 
+    /**
+     * Return all VertexData currently cached in the display. Does not check whether nodes are currently dispalyed
+     * (this functionality is not be default supported anyway, but extensions of this class should override this method
+     * if they wanted to implement node-hiding
+     * @return all VertexData currently cached in the display
+     */
     public List<VertexData> getVertexInfo() {
         return idToNodeMap.values().stream().map(data -> data.vertexData).collect(Collectors.toList());
     }
