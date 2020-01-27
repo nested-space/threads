@@ -403,21 +403,54 @@ public class MainWindowController implements Initializable {
      */
     private ThreadsData initialState() {
         //Start up a new map
-        VertexData startingNode = new VertexData("End Node", 0, 0);
-        VertexData minusOne = new VertexData("n-1", 1, 0);
-        VertexData minusTwo = new VertexData("n-2", 2, 0);
-        VertexData minusTwoA = new VertexData("n-2a", 2, 0);
+        VertexData startingNode = new VertexData("S.1.1 Nomenclature", 0, 0);
+        
+        VertexData internalDoc = new VertexData("INN / BAN / USAN / JAN\n", 1, 320000);
+        VertexData internalDocA = new VertexData("IUPAC Name", 1, 640000);
+        VertexData internalDocB = new VertexData("CAS Name", 1, 960000);
+        VertexData internalDocC = new VertexData("CAS Registry Number", 1, 1280000);
+        VertexData internalDocD = new VertexData("Other Names", 1, 1600000);
+        VertexData internalDocE = new VertexData("Company Code", 1, 1920000);
 
-        minusOne.addConnection(startingNode.getId());
-        minusTwo.addConnection((minusOne.getId()));
-        minusTwoA.addConnection((minusOne.getId()));
+        VertexData sourceDoc = new VertexData("Not Available Yet", 2, 320000);
+        VertexData sourceDocA = new VertexData("Acetic Acid", 2, 640000);
+        VertexData sourceDocB = new VertexData("Not Available Yet", 2, 960000);
+        VertexData sourceDocC = new VertexData("Not Available Yet", 2, 1280000);
+        VertexData sourceDocD = new VertexData("Not Available Yet", 2, 1600000);
+        VertexData sourceDocE = new VertexData("Alcohol", 2, 1920000);
 
-        startingNode.addConnection(minusOne.getId());
-        minusOne.addConnection((minusTwo.getId()));
-        minusOne.addConnection((minusTwoA.getId()));
+        internalDoc.addConnection(startingNode.getId());
+        internalDocA.addConnection(startingNode.getId());
+        internalDocB.addConnection(startingNode.getId());
+        internalDocC.addConnection(startingNode.getId());
+        internalDocD.addConnection(startingNode.getId());
+        internalDocE.addConnection(startingNode.getId());
+        sourceDoc.addConnection((internalDoc.getId()));
+        sourceDocA.addConnection((internalDocA.getId()));
+        sourceDocB.addConnection((internalDocB.getId()));
+        sourceDocC.addConnection((internalDocC.getId()));
+        sourceDocD.addConnection((internalDocD.getId()));
+        sourceDocE.addConnection((internalDocE.getId()));
 
-        return new ThreadsData("New File", UUID.randomUUID().toString(), Arrays.asList(
-                startingNode, minusOne, minusTwo, minusTwoA));
+        startingNode.addConnection(internalDoc.getId());
+        startingNode.addConnection(internalDocA.getId());
+        startingNode.addConnection(internalDocB.getId());
+        startingNode.addConnection(internalDocC.getId());
+        startingNode.addConnection(internalDocD.getId());
+        startingNode.addConnection(internalDocE.getId());
+        internalDoc.addConnection((sourceDoc.getId()));
+        internalDocA.addConnection((sourceDocA.getId()));
+        internalDocB.addConnection((sourceDocB.getId()));
+        internalDocC.addConnection((sourceDocC.getId()));
+        internalDocD.addConnection((sourceDocD.getId()));
+        internalDocE.addConnection((sourceDocE.getId()));
+
+        List<VertexData> vertices = new ArrayList<>(Arrays.asList(
+                startingNode,
+                internalDoc, internalDocA, internalDocB, internalDocC, internalDocD, internalDocE,
+                sourceDoc, sourceDocA, sourceDocB, sourceDocC, sourceDocD, sourceDocE));
+
+        return new ThreadsData("New File", UUID.randomUUID().toString(), vertices);
     }
 
     /**

@@ -24,6 +24,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.HorizontalDirection;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
 import javafx.scene.Node;
@@ -39,6 +40,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
+import javafx.util.Pair;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -90,6 +92,10 @@ public class DepthGraphDisplay {
      * A map that contains all the edges that are connected to each node.
      */
     private Map<Node, List<Node>> vertexToEdgesMap = new HashMap<>();
+    /**
+     * A list of all prep and display labels linked to the depth to which they're assigned
+     */
+    private Map<String, Pair<Label, Label>> idPrepDisplayLabelMap = new HashMap<>();
 
     /**
      * A list of nodes that are being prepared for removal from the display pane on the next pass
@@ -183,16 +189,16 @@ public class DepthGraphDisplay {
                 .map(VertexData::getDepth)
                 .distinct()
                 .forEach(depth -> {
-                    List<Node> prepNodes = new ArrayList<>();
+                    List<String> nodeIds = new ArrayList<>();
                     vertices.stream()
                             .filter(v -> v.getDepth() == depth)
                             .forEach(vertexData -> {
                                 DataAndNodes nodeData = createNodes(vertexData);
-                                prepNodes.add(nodeData.getPreparationNode());
+                                nodeIds.add(nodeData.getVertexData().getId());
                                 pdm.idNodeMap.put(vertexData.getId(), nodeData);
                                 pdm.prepToDisplay.put(nodeData.getPreparationNode(), nodeData.getDisplayNode());
                             });
-                    pdm.depthToPrepcontainer.put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
+                    pdm.depthToPrepcontainer.put(depth, createPrepColumn(nodeIds, "Depth: " + depth));
                 });
         return pdm;
     }
@@ -207,14 +213,15 @@ public class DepthGraphDisplay {
     private DataAndNodes createNodes(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
-        if (data.getHyperlinkURL() != null) prepNode.addTag("url", data.getHyperlinkURL().toLowerCase());
+        if (!data.getHyperlinkURL().equals("")) prepNode.addTag("url", data.getHyperlinkURL());
 
         //Create node for display overlay
         TitledContentPane displayNode = convertDataToNode(data);
+        if (!data.getHyperlinkURL().equals("")) displayNode.addTag("url", data.getHyperlinkURL());
+
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
         displayNode.setId(data.getId());
-        if (!data.getHyperlinkURL().equals("")) displayNode.addTag("url", data.getHyperlinkURL());
         displayNode.setOnContextMenuRequested(event -> {
             showContextMenu(displayNode, standardVertexContextMenu(data.getId()), event);
             event.consume();
@@ -403,7 +410,7 @@ public class DepthGraphDisplay {
     private ContextMenu standardVertexContextMenu(String id) {
         ContextMenu cm = new ContextMenu();
 
-        MenuItem addDownstream = new MenuItem("Add Downstream Node");
+        MenuItem addDownstream = new MenuItem(plottingDirection == HorizontalDirection.LEFT ? "Add Node Right ->" : "<- Add Node Left");
         addDownstream.setOnAction(event -> {
             hasUnsavedContent.set(true);
             int depth = idToNodeMap.get(id).getVertexData().getDepth();
@@ -415,7 +422,7 @@ public class DepthGraphDisplay {
             createNode(vdNew, id, Side.RIGHT);
         });
 
-        MenuItem addUpstream = new MenuItem("Add Upstream Node");
+        MenuItem addUpstream = new MenuItem(plottingDirection == HorizontalDirection.LEFT ? "<- Add Node Left" : "Add Node Right ->");
         addUpstream.setOnAction(event -> {
             hasUnsavedContent.set(true);
             int depth = idToNodeMap.get(id).getVertexData().getDepth();
@@ -465,9 +472,9 @@ public class DepthGraphDisplay {
 
         resetPreparationDisplay();
 
-        Node edge; //TODO: change edge start/finish depending on depth direction
+        Node edge;
         if (newNodeSide == Side.RIGHT && plottingDirection == HorizontalDirection.LEFT ||
-                newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.RIGHT ) {
+                newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.RIGHT) {
             edge = createEdge((TitledContentPane) idToNodeMap.get(sourceVertexId).getDisplayNode(),
                     (TitledContentPane) idToNodeMap.get(newNodeVertexData.getId()).getDisplayNode());
         } else if (newNodeSide == Side.LEFT && plottingDirection == HorizontalDirection.LEFT ||
@@ -645,7 +652,7 @@ public class DepthGraphDisplay {
      * @return a list of nodes with no upstream linkages
      */
     private List<VertexData> getUpstreamLeaves(List<VertexData> vertexDataList) {
-        if(plottingDirection == HorizontalDirection.LEFT){
+        if (plottingDirection == HorizontalDirection.LEFT) {
             return vertexDataList
                     .stream()
                     .filter(v -> v.getDepth() == Collections.max(vertexDataList
@@ -687,19 +694,49 @@ public class DepthGraphDisplay {
     /**
      * Utility method to create a consistent column in the preparation display TODO: link prep title with real display title
      *
-     * @param prepNodes the nodes to be added to the column
+     * @param nodeIds the nodes to be added to the column
      * @param title     the title of the column
      * @return a consistently-styled VBox for use in the preparation display.
      */
-    VBox createPrepColumn(List<Node> prepNodes, String title) {
+    VBox createPrepColumn(List<String> nodeIds, String title) {
         VBox container = new VBox();
         container.setAlignment(Pos.TOP_CENTER);
+        container.setPadding(new Insets(25, 0, 0, 0));
         container.setSpacing(25);
-        VBox head = new VBox(new Label(title));
+
+        Label prepTitleLabel = new Label(title);
+        Label displayTitleLabel = new Label(title);
+
+        if (!idPrepDisplayLabelMap.containsKey(title)) {
+            idPrepDisplayLabelMap.put(title, new Pair<>(prepTitleLabel, displayTitleLabel));
+            displayOverlay.getChildren().add(displayTitleLabel);
+            displayTitleLabel.setOpacity(0);
+        } else {
+            prepTitleLabel = idPrepDisplayLabelMap.get(title).getKey();
+            displayTitleLabel = idPrepDisplayLabelMap.get(title).getValue();
+            if (!displayOverlay.getChildren().contains(displayTitleLabel))
+                displayOverlay.getChildren().add(displayTitleLabel);
+        }
+
+        VBox head = new VBox(prepTitleLabel);
+        head.setAlignment(Pos.CENTER);
         VBox body = new VBox();
         body.setSpacing(35);
         body.setAlignment(Pos.TOP_CENTER);
-        prepNodes.forEach(node -> body.getChildren().add(node));
+
+        Comparator<VertexData> sortPriority = Comparator.comparingInt(VertexData::getPriority);
+
+        System.out.println(title);
+        idToNodeMap.keySet().stream()
+                .filter(nodeIds::contains)
+                .map(id -> idToNodeMap.get(id).getVertexData())
+                .sorted(sortPriority)
+                .forEachOrdered(data -> {
+                    System.out.println(data.getPriority());
+                    body.getChildren().add(idToNodeMap.get(data.getId()).getPreparationNode());
+                });
+
+        System.out.println("");
         container.getChildren().addAll(head, body);
         return container;
     }
@@ -717,10 +754,10 @@ public class DepthGraphDisplay {
                 .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
                 .collect(Collectors.toList())
                 .forEach(depth -> {
-                    List<Node> prepNodes = new ArrayList<>();
+                    List<String> prepNodes = new ArrayList<>();
                     idToNodeMap.values().stream()
                             .filter(v -> v.getVertexData().getDepth() == depth)
-                            .forEach(dn -> prepNodes.add(dn.getPreparationNode()));
+                            .forEach(dn -> prepNodes.add(dn.getVertexData().getId()));
 
                     depthToPrepContainerMap
                             .put(depth, createPrepColumn(prepNodes, "Depth: " + depth));
@@ -757,12 +794,21 @@ public class DepthGraphDisplay {
 
         for (Node prepNode : preparationDisplayMap.keySet()) {
             Node displayNode = preparationDisplayMap.getOrDefault(prepNode, new TitledContentPane());
-
             all.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
                     new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutXProperty(), ltsX(prepNode))),
                     new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutYProperty(), ltsY(prepNode))));
+        }
+
+        for (String title : idPrepDisplayLabelMap.keySet()) {
+            Node displayNode = idPrepDisplayLabelMap.get(title).getValue();
+            Node prepLabel = idPrepDisplayLabelMap.get(title).getKey();
+            all.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutXProperty(), displayNode.getLayoutX())),
+                    new KeyFrame(Duration.millis(0), new KeyValue(displayNode.layoutYProperty(), displayNode.getLayoutY())),
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutXProperty(), ltsX(prepLabel))),
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.layoutYProperty(), ltsY(prepLabel))));
         }
         all.setOnFinished(event -> {
             displayOverlay.getChildren().removeAll(toBeRemovedOnNextPass);
@@ -796,7 +842,7 @@ public class DepthGraphDisplay {
             TitledContentPane dStart = (TitledContentPane) idToNodeMap.get(currentVertex.getId()).getDisplayNode();
             currentVertex.getConnectedVertices().stream()
                     .map(id -> idToNodeMap.get(id).getVertexData())
-                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
+                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
                     .forEach(endVertex -> {
                         TitledContentPane dEnd = (TitledContentPane) idToNodeMap.get(endVertex.getId()).getDisplayNode();
                         Node edge = createEdge(dStart, dEnd);
@@ -810,12 +856,18 @@ public class DepthGraphDisplay {
         Platform.runLater(() -> {
             PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
-                double x = displayOverlay.getLayoutBounds().getWidth() / 2;
-                double y = displayOverlay.getLayoutBounds().getHeight() / 2;
-                for (Node n : preparationDisplayMap.values()) {
-                    n.setLayoutX(x);
-                    n.setLayoutY(y);
+                for (String id : idToNodeMap.keySet()) {
+                    idToNodeMap.get(id).getDisplayNode().setLayoutX(idToNodeMap.get(id).getPreparationNode().getLayoutX());
+                    idToNodeMap.get(id).getDisplayNode().setLayoutY(idToNodeMap.get(id).getPreparationNode().getLayoutY() + 50);
                 }
+
+                for (String title : idPrepDisplayLabelMap.keySet()) {
+                    Node displayLabel = idPrepDisplayLabelMap.get(title).getValue();
+                    Node prepLabel = idPrepDisplayLabelMap.get(title).getKey();
+                    displayLabel.setLayoutX(prepLabel.getLayoutX());
+                    displayLabel.setLayoutY(prepLabel.getLayoutY());
+                }
+
                 reconcilePrepAndDisplay(DELAY_TIME);
             });
             t.playFromStart();
@@ -942,6 +994,35 @@ public class DepthGraphDisplay {
         @Override
         public int compareTo(PriorityItem other) {
             return Integer.compare(this.distance, other.distance);
+        }
+    }
+
+    private static class TitlePrepDisplayLabels implements Comparable<TitlePrepDisplayLabels> {
+        String title;
+        Label prepLabel;
+        Label displayLabel;
+
+        public TitlePrepDisplayLabels(String title, Label prepLabel, Label displayLabel) {
+            this.title = title;
+            this.prepLabel = prepLabel;
+            this.displayLabel = displayLabel;
+        }
+
+        /**
+         * Compares this object with the specified object for order.  Returns a
+         * negative integer, zero, or a positive integer as this object is less
+         * than, equal to, or greater than the specified object.
+         *
+         * @param o the object to be compared.
+         * @return a negative integer, zero, or a positive integer as this object
+         * is less than, equal to, or greater than the specified object.
+         * @throws NullPointerException if the specified object is null
+         * @throws ClassCastException   if the specified object's type prevents it
+         *                              from being compared to this object.
+         */
+        @Override
+        public int compareTo(TitlePrepDisplayLabels o) {
+            return title.equals(o.title) ? 1 : 0;
         }
     }
 
