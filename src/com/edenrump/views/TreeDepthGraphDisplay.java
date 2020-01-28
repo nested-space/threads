@@ -27,6 +27,7 @@ import javafx.util.Pair;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.edenrump.config.Defaults.DELAY_TIME;
@@ -50,6 +51,8 @@ import static com.edenrump.config.Defaults.DELAY_TIME;
  */
 public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
+    Predicate<? super Map.Entry<String, DataAndNodes>> visibleNodesFilter;
+
     /**
      * Create a new Process Display
      *
@@ -57,6 +60,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     public TreeDepthGraphDisplay(ScrollPane display) {
         super(display, HorizontalDirection.RIGHT);
+
         preparationContainer.setAlignment(Pos.TOP_LEFT);
     }
 
@@ -67,26 +71,26 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     void recastDisplayFromCachedData() {
         clearNodes();
 
-        Map<String, DataAndNodes> visibleNodes = new HashMap<>();
-        idToNodeMap.keySet().stream()
-//                .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
-                .forEach(id -> visibleNodes.put(id, idToNodeMap.get(id)));
+        visibleNodesFilter = entry -> allNodesIDMap.get(entry.getKey()).getVertexData().getDepth() == 0;
+        Map<String, DataAndNodes> visibleNodesIDMap = new HashMap<>(allNodesIDMap.entrySet()
+                .stream()
+                .filter(visibleNodesFilter)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));;
 
-        visibleNodes.values().forEach(data -> displayOverlay.getChildren().add(data.getDisplayNode()));
+        visibleNodesIDMap.values().forEach(data -> displayOverlay.getChildren().add(data.getDisplayNode()));
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
-        resetPreparationDisplay(visibleNodes);
-        addEdges(visibleNodes, 0);
+        resetPreparationDisplay(visibleNodesIDMap);
+        addEdges(visibleNodesIDMap, 0);
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
         Platform.runLater(() -> {
             PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
-                for (String id : visibleNodes.keySet()) {
-                    visibleNodes.get(id).getDisplayNode().setLayoutX(ltsX(visibleNodes.get(id).getPreparationNode()));
-                    visibleNodes.get(id).getDisplayNode().setLayoutY(ltsY(visibleNodes.get(id).getPreparationNode()));
+                for (String id : visibleNodesIDMap.keySet()) {
+                    visibleNodesIDMap.get(id).getDisplayNode().setLayoutX(ltsX(visibleNodesIDMap.get(id).getPreparationNode()));
+                    visibleNodesIDMap.get(id).getDisplayNode().setLayoutY(ltsY(visibleNodesIDMap.get(id).getPreparationNode()));
                 }
-
 
                 for (String title : idPrepDisplayLabelMap.keySet()) {
                     Node displayLabel = idPrepDisplayLabelMap.get(title).getValue();
@@ -119,11 +123,11 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             return;
         }
 
-        if (idToNodeMap.get(vertexId).getVertexData().getDepth() == 0) {
+        if (allNodesIDMap.get(vertexId).getVertexData().getDepth() == 0) {
             toBeRemovedOnNextPass.clear();
 
             //remove all nodes that aren't a root node
-            toBeRemovedOnNextPass = idToNodeMap.values().stream()
+            toBeRemovedOnNextPass = allNodesIDMap.values().stream()
                     .filter(data -> data.getVertexData().getDepth() != 0)
                     .map(DataAndNodes::getDisplayNode).collect(Collectors.toList());
 
@@ -136,17 +140,17 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             //remove from toBeRemovedOnNextPass any node that will still be visible
             toBeRemovedOnNextPass.removeAll(makeVisibleIds
                     .stream()
-                    .map(id -> idToNodeMap.get(id).getDisplayNode())
+                    .map(id -> allNodesIDMap.get(id).getDisplayNode())
                     .collect(Collectors.toList()));
 
             //complete the make visible list by adding all root nodes
-            makeVisibleIds.addAll(idToNodeMap.keySet()
+            makeVisibleIds.addAll(allNodesIDMap.keySet()
                     .stream()
-                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
+                    .filter(id -> allNodesIDMap.get(id).getVertexData().getDepth() == 0)
                     .collect(Collectors.toList()));
 
             //create an id-DAN map from nodes to make visible
-            Map<String, DataAndNodes> makeVisibleMap = idToNodeMap.entrySet()
+            Map<String, DataAndNodes> makeVisibleMap = allNodesIDMap.entrySet()
                     .stream()
                     .filter(x -> makeVisibleIds.contains(x.getKey()))
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
@@ -173,14 +177,14 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     displayOverlay.getChildren().addAll(makeVisibleIds
                             .stream()
                             .distinct()
-                            .map(id -> idToNodeMap.get(id).getDisplayNode())
+                            .map(id -> allNodesIDMap.get(id).getDisplayNode())
                             .collect(Collectors.toList()));
                     //add edges too
                     addEdges(makeVisibleMap, 1);
 
                     makeVisibleIds.stream()
-                            .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() != 0)
-                            .map(id -> idToNodeMap.get(id).getPreparationNode())
+                            .filter(id -> allNodesIDMap.get(id).getVertexData().getDepth() != 0)
+                            .map(id -> allNodesIDMap.get(id).getPreparationNode())
                             .forEach(node -> {
                                 preparationDisplayMap.get(node).setLayoutX(ltsX(node));
                                 preparationDisplayMap.get(node).setLayoutY(ltsY(node));
@@ -194,10 +198,10 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             return;
         }
 
-        VertexData vertexClicked = idToNodeMap.get(vertexId).getVertexData();
+        VertexData vertexClicked = allNodesIDMap.get(vertexId).getVertexData();
         if (event.isShiftDown() && lastSelected != null) {
             List<VertexData> vertices = findShortestPath(lastSelected, vertexClicked,
-                    idToNodeMap.values().stream()
+                    allNodesIDMap.values().stream()
                             .map(DataAndNodes::getVertexData)
                             .collect(Collectors.toList()));
             selectedVertices.setAll(vertices.stream().map(VertexData::getId).collect(Collectors.toList()));
@@ -218,4 +222,5 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         event.consume();
 
     }
+
 }
