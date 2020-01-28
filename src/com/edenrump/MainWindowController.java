@@ -105,14 +105,14 @@ public class MainWindowController implements Initializable {
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE) {
                 if (selectedVertices.size() == 1) {
-                    depthGraphDisplay.removeVertex(selectedVertices.get(0));
+                    depthGraphDisplay.deleteVertex(selectedVertices.get(0));
                 } else if (selectedVertices.size() > 1) {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     alert.setTitle("Multiple vertex deletion");
                     alert.setHeaderText("Multiple vertices are selected");
                     alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
                     alert.showAndWait();
-                    new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.removeVertex(id));
+                    new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.deleteVertex(id));
                 }
             } else if (key.getCode() == KeyCode.ESCAPE) {
                 depthGraphDisplay.deselectAll();
@@ -176,7 +176,7 @@ public class MainWindowController implements Initializable {
             file = new File(file.getAbsolutePath() + ".wool");
         }
 
-        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getVertexInfo()), file);
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getAllVertices()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
@@ -209,7 +209,7 @@ public class MainWindowController implements Initializable {
             fileName = loaded.getName();
             fileID = loaded.getId();
 
-            depthGraphDisplay.create(vertexInfoInMemory);
+            depthGraphDisplay.spawnNewDisplay(vertexInfoInMemory);
             depthGraphDisplay.show();
 
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
@@ -393,7 +393,7 @@ public class MainWindowController implements Initializable {
         fileName = startingState.getName();
         fileID = startingState.getId();
 
-        depthGraphDisplay.create(vertexInfoInMemory);
+        depthGraphDisplay.spawnNewDisplay(vertexInfoInMemory);
         depthGraphDisplay.show();
 
         setInfoPaneTitle(vertexInfoInMemory.size(), 0);
@@ -415,7 +415,7 @@ public class MainWindowController implements Initializable {
      */
     private void clearAll() {
         vertexInfoInMemory.clear();
-        depthGraphDisplay.clearAll();
+        depthGraphDisplay.clearDisplay();
 
         programState = ProgramState.CLOSED;
         if (stage != null) stage.setTitle(Defaults.createTitle("Visualiser"));

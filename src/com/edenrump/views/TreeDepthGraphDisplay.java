@@ -27,7 +27,6 @@ import javafx.util.Pair;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static com.edenrump.config.Defaults.DELAY_TIME;
@@ -51,8 +50,6 @@ import static com.edenrump.config.Defaults.DELAY_TIME;
  */
 public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
-    Predicate<? super Map.Entry<String, DataAndNodes>> visibleNodesFilter;
-
     /**
      * Create a new Process Display
      *
@@ -65,7 +62,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     }
 
     /**
-     * Calculate the positions of vertices and re-create edges for the display based on data in the vertices list
+     * Calculate the positions of vertices and re-spawnNewDisplay edges for the display based on data in the vertices list
      */
     @Override
     void recastDisplayFromCachedData() {
@@ -92,9 +89,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     visibleNodesIDMap.get(id).getDisplayNode().setLayoutY(ltsY(visibleNodesIDMap.get(id).getPreparationNode()));
                 }
 
-                for (String title : idPrepDisplayLabelMap.keySet()) {
-                    Node displayLabel = idPrepDisplayLabelMap.get(title).getValue();
-                    Node prepLabel = idPrepDisplayLabelMap.get(title).getKey();
+                for (Integer title : depthPrepDisplayLabelMap.keySet()) {
+                    Node displayLabel = depthPrepDisplayLabelMap.get(title).getValue();
+                    Node prepLabel = depthPrepDisplayLabelMap.get(title).getKey();
                     displayLabel.setLayoutX(ltsX(prepLabel));
                     displayLabel.setLayoutY(ltsY(prepLabel));
                 }
@@ -149,7 +146,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     .filter(id -> allNodesIDMap.get(id).getVertexData().getDepth() == 0)
                     .collect(Collectors.toList()));
 
-            //create an id-DAN map from nodes to make visible
+            //spawnNewDisplay an id-DAN map from nodes to make visible
             Map<String, DataAndNodes> makeVisibleMap = allNodesIDMap.entrySet()
                     .stream()
                     .filter(x -> makeVisibleIds.contains(x.getKey()))
@@ -167,7 +164,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     //clear display overlay and add only labels
                     displayOverlay.getChildren().clear();
 
-                    for(Pair<Label, Label> labels : idPrepDisplayLabelMap.values()){
+                    for(Pair<Label, Label> labels : depthPrepDisplayLabelMap.values()){
                         displayOverlay.getChildren().add(labels.getValue());
                         labels.getValue().setLayoutX(ltsX(labels.getKey()));
                         labels.getValue().setLayoutY(ltsY(labels.getKey()));

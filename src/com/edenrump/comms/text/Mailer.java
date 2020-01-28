@@ -24,7 +24,7 @@ import java.util.List;
 public class Mailer {
 
     /**
-     * Method to create an email and launch the default email program
+     * Method to spawnNewDisplay an email and launch the default email program
      * @param recipients the reciepient email addresses
      * @param subject the subject of the email
      * @param body the body of the email
