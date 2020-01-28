@@ -15,15 +15,15 @@ import com.edenrump.models.VertexData;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.HorizontalDirection;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
+import javafx.util.Pair;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +43,7 @@ import static com.edenrump.config.Defaults.DELAY_TIME;
  * nodes in the display area to move from their current layout positions to the updated ones.
  * <p>
  * By contrast to the DepthGraphDisplay, this object has several independant features:
- * 1. It provides functionality to assign "root" status to all nodes that have a depth of zero
+ * 1. "Root" status is assigned to all nodes that have a depth of zero
  * 2. A depth of less than zero is not allowed (these vertices will be ignored)
  * 3. Non-root nodes are dynamically loaded and unloaded from the scene graph based on which root node is selected
  * 4. Multiple selections of root nodes is not by default supported.
@@ -69,29 +69,30 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
         Map<String, DataAndNodes> visibleNodes = new HashMap<>();
         idToNodeMap.keySet().stream()
-                .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
+//                .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
                 .forEach(id -> visibleNodes.put(id, idToNodeMap.get(id)));
 
         visibleNodes.values().forEach(data -> displayOverlay.getChildren().add(data.getDisplayNode()));
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
         resetPreparationDisplay(visibleNodes);
-        addEdges(visibleNodes);
+        addEdges(visibleNodes, 0);
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
         Platform.runLater(() -> {
             PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
             t.setOnFinished(actionEvent -> {
                 for (String id : visibleNodes.keySet()) {
-                    visibleNodes.get(id).getDisplayNode().setLayoutX(visibleNodes.get(id).getPreparationNode().getLayoutX());
-                    visibleNodes.get(id).getDisplayNode().setLayoutY(visibleNodes.get(id).getPreparationNode().getLayoutY() + 50);
+                    visibleNodes.get(id).getDisplayNode().setLayoutX(ltsX(visibleNodes.get(id).getPreparationNode()));
+                    visibleNodes.get(id).getDisplayNode().setLayoutY(ltsY(visibleNodes.get(id).getPreparationNode()));
                 }
+
 
                 for (String title : idPrepDisplayLabelMap.keySet()) {
                     Node displayLabel = idPrepDisplayLabelMap.get(title).getValue();
                     Node prepLabel = idPrepDisplayLabelMap.get(title).getKey();
-                    displayLabel.setLayoutX(prepLabel.getLayoutX());
-                    displayLabel.setLayoutY(prepLabel.getLayoutY());
+                    displayLabel.setLayoutX(ltsX(prepLabel));
+                    displayLabel.setLayoutY(ltsY(prepLabel));
                 }
 
                 reconcilePrepAndDisplay(DELAY_TIME);
@@ -119,50 +120,77 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         }
 
         if (idToNodeMap.get(vertexId).getVertexData().getDepth() == 0) {
-            List<String> makeVisible = unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH)
-                    .stream().map(data -> idToNodeMap.get(data.getId()).getVertexData().getId()).collect(Collectors.toList());
+            toBeRemovedOnNextPass.clear();
 
-            makeVisible.addAll(idToNodeMap.keySet().stream()
-                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth()==0).collect(Collectors.toList()));
+            //remove all nodes that aren't a root node
+            toBeRemovedOnNextPass = idToNodeMap.values().stream()
+                    .filter(data -> data.getVertexData().getDepth() != 0)
+                    .map(DataAndNodes::getDisplayNode).collect(Collectors.toList());
 
-            List<DataAndNodes> toRemove = idToNodeMap.keySet().stream()
-                    .filter(id -> !makeVisible.contains(id))
-                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() != 0)
-                    .map(id -> idToNodeMap.get(id))
+            //start the make visible list by adding all nodes connected to the selected root node
+            List<String> makeVisibleIds = unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH)
+                    .stream()
+                    .map(VertexData::getId)
                     .collect(Collectors.toList());
 
-            toRemove.forEach(dataAndNodes -> preparationDisplayMap.remove(dataAndNodes.getPreparationNode()));
+            //remove from toBeRemovedOnNextPass any node that will still be visible
+            toBeRemovedOnNextPass.removeAll(makeVisibleIds
+                    .stream()
+                    .map(id -> idToNodeMap.get(id).getDisplayNode())
+                    .collect(Collectors.toList()));
 
-            toBeRemovedOnNextPass.addAll(toRemove.stream().map(DataAndNodes::getDisplayNode).collect(Collectors.toList()));
-            toRemove.stream()
-                    .filter(dataAndNodes -> vertexToEdgesMap.containsKey(dataAndNodes.getDisplayNode()))
-                    .forEach(dataAndNodes -> toBeRemovedOnNextPass.addAll(vertexToEdgesMap.get(dataAndNodes.getDisplayNode())));
-            toBeRemovedOnNextPass = toBeRemovedOnNextPass.stream().distinct().collect(Collectors.toList()); //remove duplicate edges
+            //complete the make visible list by adding all root nodes
+            makeVisibleIds.addAll(idToNodeMap.keySet()
+                    .stream()
+                    .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() == 0)
+                    .collect(Collectors.toList()));
+
+            //create an id-DAN map from nodes to make visible
+            Map<String, DataAndNodes> makeVisibleMap = idToNodeMap.entrySet()
+                    .stream()
+                    .filter(x -> makeVisibleIds.contains(x.getKey()))
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            resetPreparationDisplay(makeVisibleMap);
 
             selectedVertices.setAll(vertexId);
             resetHighlightingOnAllNodes();
-
-            makeVisible.stream()
-                    .filter(id -> !preparationDisplayMap.containsValue(idToNodeMap.get(id).getDisplayNode()))
-                    .forEach(id -> idToNodeMap.get(id).getDisplayNode().setOpacity(0));
-
-            Map<String, DataAndNodes> collect = idToNodeMap.entrySet().stream()
-                    .filter(x -> makeVisible.contains(x.getKey()))
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            resetPreparationDisplay(collect);
-
-            collect.values().forEach(dataAndNodes -> {
-                        if (!displayOverlay.getChildren().contains(dataAndNodes.getDisplayNode()))
-                            displayOverlay.getChildren().add(dataAndNodes.getDisplayNode());
-                    }
-            );
+            highlightSelectedNodes();
 
             Platform.runLater(() -> {
-                PauseTransition pause = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
-                pause.setOnFinished(e -> reconcilePrepAndDisplay(DELAY_TIME));
+                PauseTransition pause = new PauseTransition(Duration.millis(50));
+                pause.setOnFinished(e -> {
+                    //clear display overlay and add only labels
+                    displayOverlay.getChildren().clear();
+
+                    for(Pair<Label, Label> labels : idPrepDisplayLabelMap.values()){
+                        displayOverlay.getChildren().add(labels.getValue());
+                        labels.getValue().setLayoutX(ltsX(labels.getKey()));
+                        labels.getValue().setLayoutY(ltsY(labels.getKey()));
+                        labels.getValue().setOpacity(1);
+                    }
+                    //add non-root nodes to the display
+                    displayOverlay.getChildren().addAll(makeVisibleIds
+                            .stream()
+                            .distinct()
+                            .map(id -> idToNodeMap.get(id).getDisplayNode())
+                            .collect(Collectors.toList()));
+                    //add edges too
+                    addEdges(makeVisibleMap, 1);
+
+                    makeVisibleIds.stream()
+                            .filter(id -> idToNodeMap.get(id).getVertexData().getDepth() != 0)
+                            .map(id -> idToNodeMap.get(id).getPreparationNode())
+                            .forEach(node -> {
+                                preparationDisplayMap.get(node).setLayoutX(ltsX(node));
+                                preparationDisplayMap.get(node).setLayoutY(ltsY(node));
+                            });
+
+                    reconcilePrepAndDisplay(DELAY_TIME);
+                });
                 pause.play();
             });
+            event.consume();
             return;
         }
 
@@ -186,7 +214,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         }
 
         highlightSelectedNodes();
-
+        lowlightUnselectedNodes();
         event.consume();
 
     }

@@ -153,7 +153,7 @@ public class DepthGraphDisplay {
         preparationContainer.setPadding(new Insets(25, 25, 25, 35));
         preparationContainer.setSpacing(125);
         preparationContainer.setAlignment(Pos.CENTER);
-        preparationContainer.setOpacity(0);
+        preparationContainer.setOpacity(0.1);
         preparationContainer.setMouseTransparent(true);
     }
 
@@ -184,7 +184,7 @@ public class DepthGraphDisplay {
         //if node is connected to other nodes, reflect this connection in those nodes
         data.getConnectedVertices().forEach(id -> {
             idToNodeMap.get(id).getVertexData().addConnection(data.getId());
-            createEdge(idToNodeMap.get(data.getId()), idToNodeMap.get(id));
+            createEdge(idToNodeMap.get(data.getId()), idToNodeMap.get(id), 0);
         });
 
         Platform.runLater(() -> {
@@ -334,7 +334,7 @@ public class DepthGraphDisplay {
     public void selectAll() {
         selectedVertices.setAll(idToNodeMap.values().stream().map(dataAndNodes -> dataAndNodes.getVertexData().getId()).collect(Collectors.toList()));
         highlightSelectedNodes();
-
+        lowlightUnselectedNodes();
     }
 
     /**
@@ -405,6 +405,7 @@ public class DepthGraphDisplay {
     void resetPreparationDisplay(Map<String, DataAndNodes> vertexMap) {
         preparationContainer.getChildren().clear();
         depthToPrepContainerMap.clear();
+        idPrepDisplayLabelMap.clear();
 
         vertexMap.values().stream()
                 .map(data -> data.getVertexData().getDepth())
@@ -427,7 +428,7 @@ public class DepthGraphDisplay {
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
     void reconcilePrepAndDisplay(double animationLength) {
-        Timeline all = new Timeline(30);
+        Timeline all = new Timeline();
 
         for (Node node : toBeRemovedOnNextPass) {
             all.getKeyFrames().addAll(
@@ -441,12 +442,6 @@ public class DepthGraphDisplay {
                 all.getKeyFrames().addAll(
                         new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
                         new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.opacityProperty(), 1)));
-                if (displayNode instanceof TitledContentPane) {
-                    TitledContentPane d = (TitledContentPane) displayNode;
-                    all.getKeyFrames().addAll(
-                            new KeyFrame(Duration.millis(0), new KeyValue(d.translateYProperty(), -12)),
-                            new KeyFrame(Duration.millis(animationLength), new KeyValue(d.translateYProperty(), 0)));
-                }
             }
         }
 
@@ -484,7 +479,7 @@ public class DepthGraphDisplay {
         for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
 
         resetPreparationDisplay(idToNodeMap);
-        addEdges(idToNodeMap);
+        addEdges(idToNodeMap, 0);
 
         //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
         Platform.runLater(() -> {
@@ -508,7 +503,7 @@ public class DepthGraphDisplay {
         });
     }
 
-    void addEdges(Map<String, DataAndNodes> vertexMap) {
+    void addEdges(Map<String, DataAndNodes> vertexMap, double opacity) {
         //add edges
         List<VertexData> unvisitedNodes = getUpstreamLeaves(vertexMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
         List<String> visitedNodes = new ArrayList<>();
@@ -523,7 +518,7 @@ public class DepthGraphDisplay {
             currentVertex.getConnectedVertices().stream().filter(vertexMap::containsKey)
                     .map(id -> vertexMap.get(id).getVertexData())
                     .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
-                    .forEach(endVertex -> createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId())));
+                    .forEach(endVertex -> createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId()), opacity));
         }
     }
 
@@ -560,7 +555,7 @@ public class DepthGraphDisplay {
         }
 
         highlightSelectedNodes();
-
+        lowlightUnselectedNodes();
         event.consume();
     }
 
@@ -679,7 +674,9 @@ public class DepthGraphDisplay {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, standardVertexContextMenu(pane.getId()), e));
                     }
                 });
+    }
 
+    void lowlightUnselectedNodes(){
         idToNodeMap.values().stream().map(DataAndNodes::getVertexData) //all vertices
                 .filter(v -> !selectedVertices.contains(v.getId()))
                 .map(v -> (TitledContentPane) idToNodeMap.get(v.getId()).getDisplayNode())
@@ -797,7 +794,7 @@ public class DepthGraphDisplay {
      * @param vertex1 the first vertex
      * @param vertex2 the second vertex
      */
-    private void createEdge(DataAndNodes vertex1, DataAndNodes vertex2) {
+    private void createEdge(DataAndNodes vertex1, DataAndNodes vertex2, double opacity) {
         boolean v2_deeper_v1 = vertex2.getVertexData().getDepth() > vertex1.getVertexData().getDepth();
 
         Region startBox;
@@ -826,7 +823,7 @@ public class DepthGraphDisplay {
         edge.setStrokeLineCap(StrokeLineCap.ROUND);
         edge.setFill(Color.TRANSPARENT);
 
-        edge.setOpacity(0);
+        edge.setOpacity(opacity);
         displayOverlay.getChildren().add(0, edge);
 
         linkVertexToEdge(startBox, edge);
@@ -900,7 +897,7 @@ public class DepthGraphDisplay {
      * @param node the node in the scene
      * @return the bounds in scene
      */
-    private Double ltsX(Node node) {
+    Double ltsX(Node node) {
         return node.localToScene(node.getBoundsInLocal()).getMinX() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinX();
     }
 
@@ -910,7 +907,7 @@ public class DepthGraphDisplay {
      *
      * @return the bounds in the current container that replicate in-scene the bounds of the prep node
      */
-    private Double ltsY(Node node) {
+    Double ltsY(Node node) {
         return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
     }
 
@@ -954,7 +951,6 @@ public class DepthGraphDisplay {
                 .sorted(sortPriority)
                 .forEachOrdered(data -> body.getChildren().add(idToNodeMap.get(data.getId()).getPreparationNode()));
 
-        System.out.println();
         container.getChildren().addAll(head, body);
         return container;
     }
