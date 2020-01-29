@@ -47,7 +47,7 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.edenrump.config.Defaults.DELAY_TIME;
+import static com.edenrump.config.Defaults.ANIMATION_LENGTH;
 
 /**
  * Class representing a display pane for a graph
@@ -65,7 +65,7 @@ public class DepthGraphDisplay {
     /**
      * Scrollpane that encapsulates all process preparation and display containers.
      */
-    ScrollPane linkMapDisplay;
+    private ScrollPane linkMapDisplay;
     /**
      * Container in the background of the display that deals with position of nodes
      * <p>
@@ -78,28 +78,30 @@ public class DepthGraphDisplay {
     /**
      * Anchorpane at the front of the display in which real nodes are placed
      */
-    AnchorPane displayOverlay = new AnchorPane();
+    private AnchorPane displayOverlay = new AnchorPane();
 
     /**
      * A list of all prep and display labels linked to the depth to which they're assigned
      */
-    Map<Integer, Labels> depthPrepDisplayLabelMap = new HashMap<>();
+    private Map<Integer, Labels> depthPrepDisplayLabelMap = new HashMap<>();
     /**
      * Map which links preparation nodes with their display counterparts
      */
-    Map<Node, Node> preparationDisplayMap = new HashMap<>();
+    private Map<Node, Node> preparationDisplayMap = new HashMap<>();
     /**
      * A map that contains all the edges that are connected to each node.
      */
-    Map<Node, List<Node>> displayNodeToEdgesMap = new HashMap<>();
+    private Map<Node, List<Node>> displayNodeToEdgesMap = new HashMap<>();
     /**
      * A map of IDs to preparation and display nodes for all nodes in memory
      */
     Map<String, DataAndNodes> allNodesIDMap = new HashMap<>();
+    private Set<DataAndNodes> currentlyVisible = new HashSet<>();
+    Set<DataAndNodes> shouldBeVisible = new HashSet<>();
     /**
      * A list of nodes that are being prepared for removal from the display pane on the next pass
      */
-    List<Node> toBeRemoved = new ArrayList<>();
+    private Set<DataAndNodes> toBeRemoved = new HashSet<>();
 
     /**
      * A map of items that are currently visible on the display
@@ -108,23 +110,23 @@ public class DepthGraphDisplay {
     /**
      * A list of the currently-selected vertices in the process display window
      */
-    ObservableList<String> selectedVertices = FXCollections.observableArrayList();
+    private ObservableList<String> selectedVertices = FXCollections.observableArrayList();
 
     /**
      * Whether the display currently has content that is unsaved. Modification of the display switches the flag to
      * true (i.e. is unsaved). Controllers using this display should manually switch the flag back upon file save
      */
-    BooleanProperty hasUnsavedContent = new SimpleBooleanProperty(false);
+    private BooleanProperty hasUnsavedContent = new SimpleBooleanProperty(false);
     /**
      * The last-selected node in the display. Null if no node selected.
      */
-    VertexData lastSelected;
+    private VertexData lastSelected;
     private HorizontalDirection plottingDirection;
 
     /**
      * Filter determining which nodes are visible in the display
      */
-    Predicate<? super Map.Entry<String, DataAndNodes>> visibleNodesFilter = entry -> true;
+    Set<Predicate<? super DataAndNodes>> visibleNodesFilters = new HashSet<>(Collections.singleton(entry -> true));
 
     /**
      * Create a new Process Display
@@ -141,8 +143,8 @@ public class DepthGraphDisplay {
         Platform.runLater(() -> {
             PauseTransition timeForWindowToLoad = new PauseTransition(Duration.seconds(2));
             timeForWindowToLoad.setOnFinished(event -> {
-                linkMapDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(() -> reconcilePrepAndDisplay(1)));
-                linkMapDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(() -> reconcilePrepAndDisplay(1)));
+                linkMapDisplay.heightProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
+                linkMapDisplay.widthProperty().addListener((obs, o, n) -> Platform.runLater(this::reconcilePrepAndDisplay));
             });
             timeForWindowToLoad.play();
         });
@@ -179,7 +181,6 @@ public class DepthGraphDisplay {
         allNodesIDMap.clear();
         preparationDisplayMap.clear();
     }
-
 
     /**
      * Create a display that shows all the vertices
@@ -292,8 +293,7 @@ public class DepthGraphDisplay {
         DataAndNodes toRemove = allNodesIDMap.get(id);
 
         //prepare objects to be removed TODO: move responsibility to determineDisplayedNodes()
-        toBeRemoved.add(toRemove.getDisplayNode());
-        toBeRemoved.addAll(displayNodeToEdgesMap.get(toRemove.getDisplayNode()));
+        toBeRemoved.add(toRemove);
 
         //curate maps
         preparationDisplayMap.remove(toRemove.getPreparationNode());
@@ -303,20 +303,61 @@ public class DepthGraphDisplay {
                 .forEach(vertex -> vertex.getConnectedVertices().remove(id));
         //curate user interface
         selectedVertices.clear();
-        resetHighlightingOnAllNodes();
 
         requestLayoutPass();
+        resetHighlightingOnAllNodes();
     }
 
     void requestLayoutPass() {
-
-        resetPreparationDisplay(allNodesIDMap);
-
-        Platform.runLater(() -> {
-            PauseTransition pause = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
-            pause.setOnFinished(event -> reconcilePrepAndDisplay(DELAY_TIME));
-            pause.play();
+        Timeline fades = refreshNodeVisibility();
+        //TODO: reorder --> disappear, then move nodes, THEN fade in new nodes.
+        fades.setOnFinished(e -> {
+            layoutPreparationDisplay(currentlyVisible);
+            reconcilePrepAndDisplay();
         });
+        fades.play();
+    }
+
+    private Timeline refreshNodeVisibility() {
+        //find all nodes that should be visible
+        Set<DataAndNodes> shouldBeVisible = new HashSet<>(allNodesIDMap.values());
+        for (Predicate<? super DataAndNodes> filter : visibleNodesFilters) {
+            shouldBeVisible = shouldBeVisible.stream().filter(filter).collect(Collectors.toSet());
+        }
+
+        //nodes that should be visible but aren't
+        Set<DataAndNodes> appear = new HashSet<>(shouldBeVisible);
+        appear.removeAll(currentlyVisible);
+
+        //node sthat shouldn't be visible, but are
+        Set<DataAndNodes> disappear = new HashSet<>();
+        for (DataAndNodes data : toBeRemoved) {
+            if (currentlyVisible.contains(data)) disappear.add(data);
+        }
+
+        currentlyVisible = shouldBeVisible;
+        displayOverlay.getChildren().setAll(currentlyVisible.stream()
+                .map(DataAndNodes::getDisplayNode).collect(Collectors.toList()));
+
+        for(DataAndNodes data : appear){
+            data.getDisplayNode().setLayoutX(displayOverlay.getWidth()/2);
+            data.getDisplayNode().setLayoutY(displayOverlay.getHeight()/2);
+        }
+
+        double animationLength = ANIMATION_LENGTH;
+        Timeline fadeTransitions = new Timeline();
+        for (DataAndNodes data : appear) {
+            fadeTransitions.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().opacityProperty(), data.getDisplayNode().getOpacity())),
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(data.getDisplayNode().opacityProperty(), 1)));
+        }
+        for (DataAndNodes data : disappear) {
+            System.out.println("fading: " + data.getVertexData().getName());
+            fadeTransitions.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().opacityProperty(), data.getDisplayNode().getOpacity())),
+                    new KeyFrame(Duration.millis(animationLength), new KeyValue(data.getDisplayNode().opacityProperty(), 0)));
+        }
+        return fadeTransitions;
     }
 
     /**
@@ -370,7 +411,7 @@ public class DepthGraphDisplay {
      * @param data the vertex data
      * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
      */
-    DataAndNodes generateNodes_LinkToData(VertexData data) {
+    private DataAndNodes generateNodes_LinkToData(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
         if (!data.getHyperlinkURL().equals("")) prepNode.addTag("url", data.getHyperlinkURL());
@@ -394,7 +435,7 @@ public class DepthGraphDisplay {
     /**
      * Clear the current display and return it to an unloaded state
      */
-    void clearNodes() {
+    private void clearNodes() {
         preparationContainer.getChildren().clear();
         displayOverlay.getChildren().clear();
     }
@@ -402,18 +443,18 @@ public class DepthGraphDisplay {
     /**
      * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
      */
-    void resetPreparationDisplay(Map<String, DataAndNodes> vertexMap) {
+    private void layoutPreparationDisplay(Set<DataAndNodes> vertexMap) {
         preparationContainer.getChildren().clear();
         depthPrepDisplayLabelMap.clear();
 
-        vertexMap.values().stream()
+        vertexMap.stream()
                 .map(data -> data.getVertexData().getDepth())
                 .distinct()
                 .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
                 .collect(Collectors.toList())
                 .forEach(depth -> {
                     List<String> prepNodes = new ArrayList<>();
-                    vertexMap.values().stream()
+                    vertexMap.stream()
                             .filter(v -> v.getVertexData().getDepth() == depth)
                             .forEach(dn -> prepNodes.add(dn.getVertexData().getId()));
                     preparationContainer.getChildren().add(createPrepColumn(prepNodes, depth));
@@ -423,97 +464,67 @@ public class DepthGraphDisplay {
     /**
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
-    void reconcilePrepAndDisplay(double animationLength) {
-        Timeline all = new Timeline();
-
-        for (Node node : toBeRemoved) {
-            all.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(node.opacityProperty(), node.getOpacity())),
-                    new KeyFrame(Duration.millis(animationLength), new KeyValue(node.opacityProperty(), 0))
-            );
-        }
-
-        for (Node displayNode : displayOverlay.getChildren()) {
-            if (displayNode.getOpacity() == 0) {
-                all.getKeyFrames().addAll(
-                        new KeyFrame(Duration.millis(0), new KeyValue(displayNode.opacityProperty(), 0)),
-                        new KeyFrame(Duration.millis(animationLength), new KeyValue(displayNode.opacityProperty(), 1)));
-            }
-        }
-
-        for (Map.Entry<Node, Node> entry : preparationDisplayMap.entrySet()) {
-            all.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(entry.getValue().layoutXProperty(), entry.getValue().getLayoutX())),
-                    new KeyFrame(Duration.millis(0), new KeyValue(entry.getValue().layoutYProperty(), entry.getValue().getLayoutY())),
-                    new KeyFrame(Duration.millis(animationLength), new KeyValue(entry.getValue().layoutXProperty(), ltsX(entry.getKey()))),
-                    new KeyFrame(Duration.millis(animationLength), new KeyValue(entry.getValue().layoutYProperty(), ltsY(entry.getKey()))));
-        }
-
-        for (Labels labels : depthPrepDisplayLabelMap.values()) {
-            all.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(labels.displayLabel.layoutXProperty(), labels.displayLabel.getLayoutX())),
-                    new KeyFrame(Duration.millis(0), new KeyValue(labels.displayLabel.layoutYProperty(), labels.displayLabel.getLayoutY())),
-                    new KeyFrame(Duration.millis(animationLength), new KeyValue(labels.displayLabel.layoutXProperty(), ltsX(labels.prepLabel))),
-                    new KeyFrame(Duration.millis(animationLength), new KeyValue(labels.displayLabel.layoutYProperty(), ltsY(labels.prepLabel))));
-        }
-        all.setOnFinished(event -> {
-            displayOverlay.getChildren().removeAll(toBeRemoved);
-            toBeRemoved.clear();
+    private void reconcilePrepAndDisplay() {
+        Platform.runLater(() -> {
+            PauseTransition pause = new PauseTransition(Duration.millis(Defaults.ANIMATION_LENGTH));
+            pause.setOnFinished(event -> {
+                double animationLength = ANIMATION_LENGTH;
+                Timeline movementTimeline = new Timeline();
+                for (Map.Entry<Node, Node> entry : preparationDisplayMap.entrySet()) {
+                    movementTimeline.getKeyFrames().addAll(
+                            new KeyFrame(Duration.millis(0), new KeyValue(entry.getValue().layoutXProperty(), entry.getValue().getLayoutX())),
+                            new KeyFrame(Duration.millis(0), new KeyValue(entry.getValue().layoutYProperty(), entry.getValue().getLayoutY())),
+                            new KeyFrame(Duration.millis(animationLength), new KeyValue(entry.getValue().layoutXProperty(), ltsX(entry.getKey()))),
+                            new KeyFrame(Duration.millis(animationLength), new KeyValue(entry.getValue().layoutYProperty(), ltsY(entry.getKey()))));
+                }
+                for (Labels labels : depthPrepDisplayLabelMap.values()) {
+                    movementTimeline.getKeyFrames().addAll(
+                            new KeyFrame(Duration.millis(0), new KeyValue(labels.displayLabel.layoutXProperty(), labels.displayLabel.getLayoutX())),
+                            new KeyFrame(Duration.millis(0), new KeyValue(labels.displayLabel.layoutYProperty(), labels.displayLabel.getLayoutY())),
+                            new KeyFrame(Duration.millis(animationLength), new KeyValue(labels.displayLabel.layoutXProperty(), ltsX(labels.prepLabel))),
+                            new KeyFrame(Duration.millis(animationLength), new KeyValue(labels.displayLabel.layoutYProperty(), ltsY(labels.prepLabel))));
+                }
+                movementTimeline.playFromStart();
+            });
+            pause.play();
         });
-        all.playFromStart();
     }
 
     /**
      * Calculate the positions of vertices and re-spawnNewDisplay edges for the display based on data in the vertices list
      */
-    void recastDisplayFromCachedData() {
+    private void recastDisplayFromCachedData() {
         clearNodes();
 
-        displayOverlay.getChildren().addAll(preparationDisplayMap.values());
-        for (Node n : displayOverlay.getChildren()) n.setOpacity(0);
+        initialVisibilityFilter();
 
-        resetPreparationDisplay(allNodesIDMap);
-        addEdges(allNodesIDMap, 0);
-
-        //Delay to allow layout cascade to happen, then load the displayOverlay with nodes
-        Platform.runLater(() -> {
-            PauseTransition t = new PauseTransition(Duration.millis(Defaults.DELAY_TIME));
-            t.setOnFinished(actionEvent -> {
-                for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
-                    entry.getValue().getDisplayNode().setLayoutX(entry.getValue().getPreparationNode().getLayoutX());
-                    entry.getValue().getDisplayNode().setLayoutY(entry.getValue().getPreparationNode().getLayoutY() + 50);
-                }
-                for (Labels labels : depthPrepDisplayLabelMap.values()) {
-                    labels.displayLabel.setLayoutX(labels.prepLabel.getLayoutX());
-                    labels.displayLabel.setLayoutY(labels.prepLabel.getLayoutY());
-                }
-
-                reconcilePrepAndDisplay(DELAY_TIME);
-            });
-            t.playFromStart();
-        });
+        requestLayoutPass();
     }
 
-    void addEdges(Map<String, DataAndNodes> vertexMap, double opacity) {
+    void initialVisibilityFilter() {
+
+    }
+
+    private void addEdges(Set<DataAndNodes> vertexMap, double opacity) {
         //determine variables based on plotting direction
         DepthDirection searchDirection = plottingDirection == HorizontalDirection.LEFT ? DepthDirection.INCREASING_DEPTH : DepthDirection.DECREASING_DEPTH;
 
         //add edges
-        List<VertexData> unvisitedNodes = Graph.getLeavesUnidirectional(searchDirection, vertexMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
-
-        List<String> visitedNodes = new ArrayList<>();
+        List<VertexData> unvisitedNodes = Graph.getLeavesUnidirectional(searchDirection, vertexMap.stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
+        List<VertexData> visitedNodes = new ArrayList<>();
         while (unvisitedNodes.size() > 0) {
             VertexData currentVertex = unvisitedNodes.remove(0);
-            visitedNodes.add(currentVertex.getId());
+            visitedNodes.add(currentVertex);
 
             currentVertex.getConnectedVertices().stream()
-                    .filter(id -> !visitedNodes.contains(id) && vertexMap.containsKey(id))
-                    .forEach(id -> unvisitedNodes.add(vertexMap.get(id).getVertexData()));
+                    .filter(id -> !visitedNodes.contains(id) &&
+                            vertexMap.stream().map(data -> data.getVertexData().getId()).collect(Collectors.toList()).contains(id))
+                    .forEach(id -> unvisitedNodes.add(allNodesIDMap.get(id).getVertexData()));
 
-            currentVertex.getConnectedVertices().stream().filter(vertexMap::containsKey)
-                    .map(id -> vertexMap.get(id).getVertexData())
+            currentVertex.getConnectedVertices().stream().filter(vertexMap::contains)
+                    .map(id -> allNodesIDMap.get(id).getVertexData())
                     .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
-                    .forEach(endVertex -> createEdge(vertexMap.get(currentVertex.getId()), vertexMap.get(endVertex.getId()), opacity));
+                    .forEach(endVertex -> createEdge(allNodesIDMap.get(currentVertex.getId()), allNodesIDMap.get(endVertex.getId()), opacity));
         }
     }
 
@@ -524,7 +535,7 @@ public class DepthGraphDisplay {
      * @param vertexId the vertex selected
      * @param event    the mouse-event that triggered the selection
      */
-    void handleSelection(String vertexId, MouseEvent event) {
+    private void handleSelection(String vertexId, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY && selectedVertices.contains(vertexId)) {
             event.consume();
             return;
@@ -549,9 +560,15 @@ public class DepthGraphDisplay {
             lastSelected = vertexClicked;
         }
 
+        addMouseActions(vertexId, event);
+
         highlightSelectedNodes();
         lowlightUnselectedNodes();
         event.consume();
+    }
+
+    void addMouseActions(String vertexId, MouseEvent event) {
+
     }
 
     List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction) {
@@ -590,7 +607,7 @@ public class DepthGraphDisplay {
     /**
      * Separate vertex nodes by selection. Highlight selected nodes. Lowlight unselected nodes.
      */
-    void highlightSelectedNodes() {
+    private void highlightSelectedNodes() {
 
         selectedVertices.stream()
                 .map(id -> (TitledContentPane) allNodesIDMap.get(id).getDisplayNode())
@@ -605,7 +622,7 @@ public class DepthGraphDisplay {
 
     }
 
-    void lowlightUnselectedNodes() {
+    private void lowlightUnselectedNodes() {
         allNodesIDMap.values().stream().map(DataAndNodes::getVertexData) //all vertices
                 .filter(v -> !selectedVertices.contains(v.getId()))
                 .map(v -> (TitledContentPane) allNodesIDMap.get(v.getId()).getDisplayNode())
@@ -618,7 +635,7 @@ public class DepthGraphDisplay {
     /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
-    void resetHighlightingOnAllNodes() {
+    private void resetHighlightingOnAllNodes() {
         for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
             TitledContentPane displayNode = (TitledContentPane) entry.getValue().getDisplayNode();
             displayNode.resetHighlighting();
@@ -688,7 +705,7 @@ public class DepthGraphDisplay {
         return cm;
     }
 
-    int calculatePriority(int depth, VerticalDirection topOrBottom) {
+    private int calculatePriority(int depth, VerticalDirection topOrBottom) {
         int rowPriorityIncrement = 32000;
 
         List<Integer> siblingPriorities = allNodesIDMap.values()
@@ -845,7 +862,7 @@ public class DepthGraphDisplay {
      * @param node the node in the scene
      * @return the bounds in scene
      */
-    Double ltsX(Node node) {
+    private Double ltsX(Node node) {
         return node.localToScene(node.getBoundsInLocal()).getMinX() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinX();
     }
 
@@ -855,7 +872,7 @@ public class DepthGraphDisplay {
      *
      * @return the bounds in the current container that replicate in-scene the bounds of the prep node
      */
-    Double ltsY(Node node) {
+    private Double ltsY(Node node) {
         return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
     }
 
