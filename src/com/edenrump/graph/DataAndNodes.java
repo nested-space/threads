@@ -12,6 +12,8 @@ package com.edenrump.graph;
 import com.edenrump.models.VertexData;
 import javafx.scene.Node;
 
+import java.util.Timer;
+
 /**
  * Class representing the information necessary to link the vertex data with its preparation node and its
  * living node in the scene graph.
@@ -19,6 +21,13 @@ import javafx.scene.Node;
 public class DataAndNodes {
     private VertexData vertexData;
     private Node preparationNode;
+    private Node displayNode;
+
+    public DataAndNodes(VertexData vd, Node p, Node d) {
+        this.vertexData = vd;
+        this.preparationNode = p;
+        this.displayNode = d;
+    }
 
     public VertexData getVertexData() {
         return vertexData;
@@ -30,13 +39,5 @@ public class DataAndNodes {
 
     public Node getDisplayNode() {
         return displayNode;
-    }
-
-    private Node displayNode;
-
-    public DataAndNodes(VertexData vd, Node p, Node d) {
-        this.vertexData = vd;
-        this.preparationNode = p;
-        this.displayNode = d;
     }
 }

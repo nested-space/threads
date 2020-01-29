@@ -17,10 +17,13 @@ import com.edenrump.views.DepthGraphDisplay;
 import com.edenrump.views.TreeDepthGraphDisplay;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -34,7 +37,10 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
 public class MainWindowController implements Initializable {
@@ -88,8 +94,8 @@ public class MainWindowController implements Initializable {
 
         depthGraphDisplay = new TreeDepthGraphDisplay(displayWrapper);
         BooleanProperty unsavedInDisplay = depthGraphDisplay.hasUnsavedContentProperty();
-        unsavedInDisplay.addListener((obs, o, n) ->{
-            if(n){
+        unsavedInDisplay.addListener((obs, o, n) -> {
+            if (n) {
                 registerChange();
             }
         });
@@ -102,6 +108,7 @@ public class MainWindowController implements Initializable {
             setInfoPaneComments(c.getList().stream().map(id -> depthGraphDisplay.getVertex(id).get()).collect(Collectors.toList()));
         });
 
+        IntegerProperty priority = new SimpleIntegerProperty(192000);
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE) {
                 if (selectedVertices.size() == 1) {
@@ -118,6 +125,9 @@ public class MainWindowController implements Initializable {
                 depthGraphDisplay.deselectAll();
             } else if (key.getCode() == KeyCode.A && key.isControlDown()) {
                 depthGraphDisplay.selectAll();
+            } else if (key.getCode() == KeyCode.ENTER && key.isControlDown()) {
+                priority.set(priority.get()+32000);
+                depthGraphDisplay.createVertex(new VertexData("Module", 0, priority.get()));
             }
         }));
     }
@@ -149,7 +159,7 @@ public class MainWindowController implements Initializable {
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> {
             if (programState == ProgramState.UNSAVED) {
-                if(cancelActionToSaveContent()) Platform.exit();
+                if (cancelActionToSaveContent()) Platform.exit();
             } else {
                 Platform.exit();
             }
@@ -287,7 +297,7 @@ public class MainWindowController implements Initializable {
                         if (event.getCode() == KeyCode.ENTER) {
                             updateVertex(holder, titleEdit, hyperlinkEdit, titleValue, hyperlinkValue, vertex);
                             buttons.getChildren().setAll(edit);
-                        } else if (event.getCode() == KeyCode.ESCAPE){
+                        } else if (event.getCode() == KeyCode.ESCAPE) {
                             holder.getChildren().removeAll(titleEdit, hyperlinkEdit);
                             holder.getChildren().addAll(titleValue, hyperlinkValue);
                             buttons.getChildren().setAll(edit);

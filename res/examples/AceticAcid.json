@@ -3,6 +3,42 @@
   "id": "Test",
   "vertices": [
     {
+      "connectedVertices": [],
+      "depth": 0,
+      "priority": 160000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "e3c3ad6c-64ec-429c-bc8d-38c76c061e0e",
+        "valid": true
+      },
+      "hyperlinkURL": ""
+    },
+    {
+      "connectedVertices": [],
+      "depth": 0,
+      "priority": 32000,
+      "name": "S.1.2 Structure",
+      "id": {
+        "name": "",
+        "value": "0173e535-3391-4e34-af16-951e83b2f3b1",
+        "valid": true
+      },
+      "hyperlinkURL": ""
+    },
+    {
+      "connectedVertices": [],
+      "depth": 0,
+      "priority": 96000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "fa96e1b5-4579-4727-bb5b-9985cf2a9b37",
+        "valid": true
+      },
+      "hyperlinkURL": ""
+    },
+    {
       "connectedVertices": [
         "c0b33d33-1ada-4350-87e4-8ec385f67a96",
         "126fa6db-01e7-4994-b2ad-5251ca5c0f73",
@@ -17,30 +53,6 @@
       "id": {
         "name": "",
         "value": "0973e535-3391-4e34-af16-951e83b2f3b1",
-        "valid": true
-      },
-      "hyperlinkURL": ""
-    },
-    {
-      "connectedVertices": [],
-      "depth": 0,
-      "priority": 320000,
-      "name": "S.1.2 Structure",
-      "id": {
-        "name": "",
-        "value": "0173e535-3391-4e34-af16-951e83b2f3b1",
-        "valid": true
-      },
-      "hyperlinkURL": ""
-    },
-    {
-      "connectedVertices": [],
-      "depth": 0,
-      "priority": 640000,
-      "name": "S.1.3 General Properties",
-      "id": {
-        "name": "",
-        "value": "0273e535-3391-4e34-af16-951e83b2f3b1",
         "valid": true
       },
       "hyperlinkURL": ""
@@ -103,16 +115,13 @@
       "hyperlinkURL": ""
     },
     {
-      "connectedVertices": [
-        "0973e535-3391-4e34-af16-951e83b2f3b1",
-        "51150d13-ce0b-490f-8a6e-da39aafacfdf"
-      ],
-      "depth": 1,
-      "priority": 320000,
-      "name": "INN / BAN / USAN / JAN\n",
+      "connectedVertices": [],
+      "depth": 0,
+      "priority": 128000,
+      "name": "Module",
       "id": {
         "name": "",
-        "value": "c0b33d33-1ada-4350-87e4-8ec385f67a96",
+        "value": "2c88f0fd-45b9-4b9a-829b-286e03bcaa23",
         "valid": true
       },
       "hyperlinkURL": ""
@@ -127,6 +136,21 @@
       "id": {
         "name": "",
         "value": "51150d13-ce0b-490f-8a6e-da39aafacfdf",
+        "valid": true
+      },
+      "hyperlinkURL": ""
+    },
+    {
+      "connectedVertices": [
+        "0973e535-3391-4e34-af16-951e83b2f3b1",
+        "51150d13-ce0b-490f-8a6e-da39aafacfdf"
+      ],
+      "depth": 1,
+      "priority": 320000,
+      "name": "INN / BAN / USAN / JAN\n",
+      "id": {
+        "name": "",
+        "value": "c0b33d33-1ada-4350-87e4-8ec385f67a96",
         "valid": true
       },
       "hyperlinkURL": ""
@@ -171,6 +195,18 @@
       "id": {
         "name": "",
         "value": "126fa6db-01e7-4994-b2ad-5251ca5c0f73",
+        "valid": true
+      },
+      "hyperlinkURL": ""
+    },
+    {
+      "connectedVertices": [],
+      "depth": 0,
+      "priority": 64000,
+      "name": "S.1.3 General Properties",
+      "id": {
+        "name": "",
+        "value": "0273e535-3391-4e34-af16-951e83b2f3b1",
         "valid": true
       },
       "hyperlinkURL": ""

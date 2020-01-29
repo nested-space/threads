@@ -11,18 +11,18 @@ package com.edenrump.views;
 
 import com.edenrump.config.Defaults;
 import com.edenrump.graph.DataAndNodes;
+import com.edenrump.graph.DepthDirection;
+import com.edenrump.graph.Graph;
 import com.edenrump.models.VertexData;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.util.Duration;
-import javafx.util.Pair;
 
 import java.util.HashMap;
 import java.util.List;
@@ -89,11 +89,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     visibleNodesIDMap.get(id).getDisplayNode().setLayoutY(ltsY(visibleNodesIDMap.get(id).getPreparationNode()));
                 }
 
-                for (Integer title : depthPrepDisplayLabelMap.keySet()) {
-                    Node displayLabel = depthPrepDisplayLabelMap.get(title).getValue();
-                    Node prepLabel = depthPrepDisplayLabelMap.get(title).getKey();
-                    displayLabel.setLayoutX(ltsX(prepLabel));
-                    displayLabel.setLayoutY(ltsY(prepLabel));
+                for (Labels labels : depthPrepDisplayLabelMap.values()) {
+                    labels.displayLabel.setLayoutX(ltsX(labels.prepLabel));
+                    labels.displayLabel.setLayoutY(ltsY(labels.prepLabel));
                 }
 
                 reconcilePrepAndDisplay(DELAY_TIME);
@@ -121,10 +119,10 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         }
 
         if (allNodesIDMap.get(vertexId).getVertexData().getDepth() == 0) {
-            toBeRemovedOnNextPass.clear();
+            toBeRemoved.clear();
 
             //remove all nodes that aren't a root node
-            toBeRemovedOnNextPass = allNodesIDMap.values().stream()
+            toBeRemoved = allNodesIDMap.values().stream()
                     .filter(data -> data.getVertexData().getDepth() != 0)
                     .map(DataAndNodes::getDisplayNode).collect(Collectors.toList());
 
@@ -135,7 +133,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     .collect(Collectors.toList());
 
             //remove from toBeRemovedOnNextPass any node that will still be visible
-            toBeRemovedOnNextPass.removeAll(makeVisibleIds
+            toBeRemoved.removeAll(makeVisibleIds
                     .stream()
                     .map(id -> allNodesIDMap.get(id).getDisplayNode())
                     .collect(Collectors.toList()));
@@ -164,11 +162,11 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     //clear display overlay and add only labels
                     displayOverlay.getChildren().clear();
 
-                    for(Pair<Label, Label> labels : depthPrepDisplayLabelMap.values()){
-                        displayOverlay.getChildren().add(labels.getValue());
-                        labels.getValue().setLayoutX(ltsX(labels.getKey()));
-                        labels.getValue().setLayoutY(ltsY(labels.getKey()));
-                        labels.getValue().setOpacity(1);
+                    for(Labels labels : depthPrepDisplayLabelMap.values()){
+                        displayOverlay.getChildren().add(labels.displayLabel);
+                        labels.displayLabel.setLayoutX(ltsX(labels.prepLabel));
+                        labels.displayLabel.setLayoutY(ltsY(labels.prepLabel));
+                        labels.displayLabel.setOpacity(1);
                     }
                     //add non-root nodes to the display
                     displayOverlay.getChildren().addAll(makeVisibleIds
@@ -197,7 +195,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
         VertexData vertexClicked = allNodesIDMap.get(vertexId).getVertexData();
         if (event.isShiftDown() && lastSelected != null) {
-            List<VertexData> vertices = findShortestPath(lastSelected, vertexClicked,
+            List<VertexData> vertices = Graph.findShortestPath(lastSelected, vertexClicked,
                     allNodesIDMap.values().stream()
                             .map(DataAndNodes::getVertexData)
                             .collect(Collectors.toList()));
@@ -219,5 +217,4 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         event.consume();
 
     }
-
 }
