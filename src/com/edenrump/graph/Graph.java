@@ -117,6 +117,39 @@ public class Graph {
         return path;
     }
 
+    public static List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction, Map<String, DataAndNodes> nodeMap) {
+        VertexData currentVertex = nodeMap.get(vertexID).getVertexData();
+        List<VertexData> unvisitedVertices = currentVertex.getConnectedVertices().stream()
+                .map(id -> nodeMap.get(id).getVertexData())
+                .filter(data -> {
+                    if (direction == DepthDirection.INCREASING_DEPTH) {
+                        return data.getDepth() > nodeMap.get(vertexID).getVertexData().getDepth();
+                    } else {
+                        return data.getDepth() < nodeMap.get(vertexID).getVertexData().getDepth();
+                    }
+                })
+                .collect(Collectors.toList());
+
+        List<VertexData> visitedVertices = new ArrayList<>(Collections.singletonList(currentVertex));
+        while (unvisitedVertices.size() > 0) {
+            currentVertex = unvisitedVertices.remove(0);
+            visitedVertices.add(currentVertex);
+
+            unvisitedVertices.addAll(currentVertex.getConnectedVertices().stream()
+                    .map(id -> nodeMap.get(id).getVertexData())
+                    .filter(data -> !visitedVertices.contains(data))
+                    .filter(data -> {
+                        if (direction == DepthDirection.INCREASING_DEPTH) {
+                            return data.getDepth() > nodeMap.get(vertexID).getVertexData().getDepth();
+                        } else {
+                            return data.getDepth() < nodeMap.get(vertexID).getVertexData().getDepth();
+                        }
+                    }).collect(Collectors.toList()));
+        }
+
+        return visitedVertices;
+    }
+
     /**
      * Class representing an item in the priority queue of a Dijkstra's shortest-path calculation.
      */
@@ -149,6 +182,5 @@ public class Graph {
             return Integer.compare(this.distance, other.distance);
         }
     }
-
 
 }

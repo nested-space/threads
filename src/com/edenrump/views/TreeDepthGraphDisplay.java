@@ -10,13 +10,17 @@
 package com.edenrump.views;
 
 import com.edenrump.graph.DataAndNodes;
+import com.edenrump.graph.DepthDirection;
+import com.edenrump.graph.Graph;
+import com.edenrump.models.VertexData;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
 
-import java.util.Objects;
+import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Class representing a display pane for a tree graph
@@ -38,25 +42,24 @@ import java.util.function.Predicate;
 public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
     /**
+     * The plotting direction for the TreeDepthGraphDisplay (root nodes are displayed on the left)
+     */
+    private static final HorizontalDirection PLOTTING_DIRECTION = HorizontalDirection.RIGHT;
+
+    /**
      * Create a new Process Display
      *
      * @param display the pane on which the processdisplay should be rendered
      */
     public TreeDepthGraphDisplay(ScrollPane display) {
-        super(display, HorizontalDirection.RIGHT);
-
+        super(display, PLOTTING_DIRECTION);
+        visibleNodesFilters.add(entry -> entry.getVertexData().getDepth() == 0);
         preparationContainer.setAlignment(Pos.TOP_LEFT);
     }
 
     /**
-     * Calculate the positions of vertices and re-spawnNewDisplay edges for the display based on data in the vertices list
+     * The selection filter to be applied whenever a layoutPass is requested
      */
-    @Override
-    void initialVisibilityFilter() {
-        visibleNodesFilters.clear();
-        visibleNodesFilters.add(entry -> entry.getVertexData().getDepth() == 0);
-    }
-
     Predicate<? super DataAndNodes> selectorFilter;
 
     /**
@@ -73,10 +76,12 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     void addMouseActions(String vertexId, MouseEvent event) {
         if (allNodesIDMap.get(vertexId).getVertexData().getDepth() == 0) {
             visibleNodesFilters.clear();
-            selectorFilter = entry -> entry.getVertexData().getConnectedVertices().contains(vertexId) || entry.getVertexData().getDepth() == 0;
+            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, allNodesIDMap)
+                    .stream()
+                    .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             visibleNodesFilters.add(selectorFilter);
+            resetHighlightingOnAllNodes();
             requestLayoutPass();
-            System.out.println("Do something special");
         } else {
             selectorFilter = entry -> true;
         }
