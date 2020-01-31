@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.comms.graphics;
+package com.edenrump.io.graphics;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

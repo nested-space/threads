@@ -13,11 +13,16 @@ import com.edenrump.graph.DataAndNodes;
 import com.edenrump.graph.DepthDirection;
 import com.edenrump.graph.Graph;
 import com.edenrump.models.VertexData;
+import javafx.beans.property.IntegerProperty;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -40,6 +45,8 @@ import java.util.stream.Collectors;
  * 4. Multiple selections of root nodes is not by default supported.
  */
 public class TreeDepthGraphDisplay extends DepthGraphDisplay {
+
+    private DataAndNodes selectedRootNode = null;
 
     /**
      * The plotting direction for the TreeDepthGraphDisplay (root nodes are displayed on the left)
@@ -75,15 +82,57 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     @Override
     void addMouseActions(String vertexId, MouseEvent event) {
         if (allNodesIDMap.get(vertexId).getVertexData().getDepth() == 0) {
+            selectedRootNode = allNodesIDMap.get(vertexId);
             visibleNodesFilters.clear();
             selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, allNodesIDMap)
                     .stream()
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             visibleNodesFilters.add(selectorFilter);
             resetHighlightingOnAllNodes();
+            selectedVertices.setAll(vertexId);
             requestLayoutPass();
         } else {
             selectorFilter = entry -> true;
         }
+    }
+
+    /**
+     * Utility method to create a consistent column in the preparation display
+     *
+     * @param nodeIds the nodes to be added to the column
+     * @param title   the title of the column
+     * @return a consistently-styled VBox for use in the preparation display.
+     */
+    @Override
+    VBox createPrepColumn(List<String> nodeIds, Integer title) {
+        VBox body = new VBox();
+        body.setSpacing(35);
+        body.setAlignment(Pos.TOP_CENTER);
+
+        boolean notRootColumn = allNodesIDMap.get(nodeIds.get(0)).getVertexData().getDepth() != 0;
+
+        if (selectedRootNode != null && notRootColumn) {
+            List<DataAndNodes> rootNodes = allNodesIDMap.values().stream()
+                    .filter(data -> data.getVertexData().getDepth() == 0)
+                    .sorted(Comparator.comparingInt(o -> o.getVertexData().getPriority()))
+                    .collect(Collectors.toList());
+            int index = rootNodes.indexOf(selectedRootNode);
+            if(index > (0.65 * rootNodes.size())){
+                body.setAlignment(Pos.BOTTOM_CENTER);
+            } else if ( index < 0.35 * rootNodes.size()){
+                body.setAlignment(Pos.TOP_CENTER);
+            } else {
+                body.setAlignment(Pos.CENTER);
+            }
+        }
+
+        Comparator<VertexData> sortPriority = Comparator.comparingDouble(VertexData::getPriority);
+        allNodesIDMap.keySet().stream()
+                .filter(nodeIds::contains)
+                .map(id -> allNodesIDMap.get(id).getVertexData())
+                .sorted(sortPriority)
+                .forEachOrdered(data -> body.getChildren().add(allNodesIDMap.get(data.getId()).getPreparationNode()));
+
+        return body;
     }
 }

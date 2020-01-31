@@ -13,7 +13,7 @@ import com.edenrump.graph.DataAndNodes;
 import com.edenrump.graph.DepthDirection;
 import com.edenrump.graph.Graph;
 import com.edenrump.models.VertexData;
-import com.edenrump.ui.components.TitledContentPane;
+import com.edenrump.ui.nodes.TitledContentPane;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
@@ -104,7 +104,7 @@ public class DepthGraphDisplay {
     /**
      * A list of the currently-selected vertices in the process display window
      */
-    private ObservableList<String> selectedVertices = FXCollections.observableArrayList();
+    ObservableList<String> selectedVertices = FXCollections.observableArrayList();
 
     /**
      * Whether the display currently has content that is unsaved. Modification of the display switches the flag to
@@ -347,9 +347,15 @@ public class DepthGraphDisplay {
                 data.getDisplayNode().setLayoutX(ltsX(data.getPreparationNode()));
                 data.getDisplayNode().setLayoutY(ltsY(data.getPreparationNode()));
             }
-            moveNodes.setOnFinished((event) -> {
+            moveNodes.setOnFinished((move_event) -> {
                 appear.play();
                 fadeOut.play();
+                PauseTransition recalculateHeights = new PauseTransition(Duration.seconds(1));
+                recalculateHeights.setOnFinished((wait_event) -> {
+                    reconcilePrepAndDisplay(currentlyVisible);
+                });
+                recalculateHeights.play();
+                move_event.consume();
             });
             moveNodes.play();
         });
@@ -426,6 +432,9 @@ public class DepthGraphDisplay {
     private Timeline reconcilePrepAndDisplay(Set<DataAndNodes> nodes) {
         Timeline movementTimeline = new Timeline();
         for (DataAndNodes data : nodes) {
+            Region disp = (Region) data.getDisplayNode();
+            Region prep = (Region) data.getPreparationNode();
+            disp.setMaxHeight(prep.getHeight());
             movementTimeline.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().layoutXProperty(), data.getDisplayNode().getLayoutX())),
                     new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().layoutYProperty(), data.getDisplayNode().getLayoutY())),
@@ -606,10 +615,10 @@ public class DepthGraphDisplay {
             lastSelected = vertexClicked;
         }
 
+        addMouseActions(vertexId, event);
+
         highlightSelectedNodes();
         lowlightUnselectedNodes();
-
-        addMouseActions(vertexId, event);
 
         event.consume();
     }
@@ -839,41 +848,19 @@ public class DepthGraphDisplay {
      * @param title   the title of the column
      * @return a consistently-styled VBox for use in the preparation display.
      */
-    private VBox createPrepColumn(List<String> nodeIds, Integer title) {
-        VBox container = new VBox();
-        container.setAlignment(Pos.TOP_CENTER);
-        container.setSpacing(25);
-
-        Label prepTitleLabel = new Label(title.toString());
-        Label displayTitleLabel = new Label(title.toString());
-
-        if (!depthPrepDisplayLabelMap.containsKey(title)) {
-            depthPrepDisplayLabelMap.put(title, new Labels(prepTitleLabel, displayTitleLabel));
-            displayOverlay.getChildren().add(displayTitleLabel);
-            displayTitleLabel.setOpacity(0);
-        } else {
-            prepTitleLabel = depthPrepDisplayLabelMap.get(title).prepLabel;
-            displayTitleLabel = depthPrepDisplayLabelMap.get(title).displayLabel;
-            if (!displayOverlay.getChildren().contains(displayTitleLabel))
-                displayOverlay.getChildren().add(displayTitleLabel);
-        }
-
-        VBox head = new VBox(prepTitleLabel);
-        head.setAlignment(Pos.CENTER);
+    VBox createPrepColumn(List<String> nodeIds, Integer title) {
         VBox body = new VBox();
         body.setSpacing(35);
         body.setAlignment(Pos.TOP_CENTER);
 
         Comparator<VertexData> sortPriority = Comparator.comparingDouble(VertexData::getPriority);
-
         allNodesIDMap.keySet().stream()
                 .filter(nodeIds::contains)
                 .map(id -> allNodesIDMap.get(id).getVertexData())
                 .sorted(sortPriority)
                 .forEachOrdered(data -> body.getChildren().add(allNodesIDMap.get(data.getId()).getPreparationNode()));
 
-        container.getChildren().addAll(head, body);
-        return container;
+        return body;
     }
 
     /**

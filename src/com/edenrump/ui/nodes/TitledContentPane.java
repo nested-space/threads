@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui.components;
+package com.edenrump.ui.nodes;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

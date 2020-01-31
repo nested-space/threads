@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.comms.text;
+package com.edenrump.io.text;
 
 import javafx.animation.AnimationTimer;
 import javafx.scene.input.Clipboard;

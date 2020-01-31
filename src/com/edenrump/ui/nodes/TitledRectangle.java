@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.ui.components;
+package com.edenrump.ui.nodes;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -111,9 +111,9 @@ public class TitledRectangle extends StackPane {
         //set up label
         mLabel.setWrapText(true);
         mLabel.setPrefWidth(150);
-        mLabel.setTextAlignment(TextAlignment.CENTER);
+        mLabel.setTextAlignment(TextAlignment.LEFT);
 
-        setPadding(new Insets(0, 0, 0, 20));
+        setPadding(new Insets(0, 15, 0, 15));
 
         //add children
         getChildren().addAll(mBackgroundRectangle, mLabel);

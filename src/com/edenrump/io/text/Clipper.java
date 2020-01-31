@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.comms.text;
+package com.edenrump.io.text;
 
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
