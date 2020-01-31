@@ -10,7 +10,6 @@
 package com.edenrump.views;
 
 import com.edenrump.graph.DataAndNodes;
-import com.edenrump.graph.DepthDirection;
 import com.edenrump.graph.Graph;
 import com.edenrump.models.VertexData;
 import com.edenrump.ui.nodes.TitledContentPane;
@@ -39,6 +38,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.CubicCurve;
+import javafx.scene.shape.Shape;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
@@ -86,7 +86,7 @@ public class DepthGraphDisplay {
     /**
      * A map that contains all the edges that are connected to each node.
      */
-    private Map<Node, List<Node>> displayNodeToEdgesMap = new HashMap<>();
+    private Map<DataAndNodes, Set<Shape>> displayNodeToEdgesMap = new HashMap<>();
     /**
      * A map of IDs to preparation and display nodes for all nodes in memory
      */
@@ -97,10 +97,6 @@ public class DepthGraphDisplay {
      */
     private Set<DataAndNodes> toBeRemoved = new HashSet<>();
 
-    /**
-     * A map of items that are currently visible on the display
-     */
-    List<String> visibleVertices = new ArrayList<>();
     /**
      * A list of the currently-selected vertices in the process display window
      */
@@ -226,14 +222,7 @@ public class DepthGraphDisplay {
         data.getConnectedVertices().forEach(id -> {
             //respect symmetrical connections
             allNodesIDMap.get(id).getVertexData().addConnection(data.getId());
-
-            //create edges to new node
-            createEdge(allNodesIDMap.get(data.getId()), allNodesIDMap.get(id), 0);
         });
-
-        //add new nodes to display
-//        newNodeData.getDisplayNode().setOpacity(0);
-//        displayOverlay.getChildren().add(newNodeData.getDisplayNode());
 
         requestLayoutPass();
     }
@@ -308,49 +297,68 @@ public class DepthGraphDisplay {
      */
     private void recastDisplayFromCachedData() {
         clearNodes();
-
-        initialVisibilityFilter();
-
         requestLayoutPass();
     }
 
     /**
      * Determine which nodes should be visible based on the node visibility filters applied to the display
-     *
+     * <p>
      * Re-determine the position of visible nodes in the preparation display. Wait for 100 milliseconds to allow
      * a layout pass through the JavaFX Scene Graph to pass.
-     *
+     * <p>
      * Fade in nodes that should be visible, fade out those that should not be visible. Move display nodes to their
      * correct locations.
-     *
      */
     void requestLayoutPass() {
-        NodeStatus status = refreshNodeVisibility();
-
+        NodeStatus status = assessNodeVisibility();
         layoutPreparationDisplay(currentlyVisible);
 
         for (DataAndNodes data : status.appear) {
             data.getDisplayNode().setOpacity(0);
         }
 
-        PauseTransition wait = new PauseTransition(Duration.millis(100));
+        PauseTransition wait = new PauseTransition(Duration.millis(250));
         wait.setOnFinished((e) -> {
-            displayOverlay.getChildren().setAll(currentlyVisible.stream()
-                    .map(DataAndNodes::getDisplayNode).collect(Collectors.toList()));
-            Timeline appear = fadeInDesiredNodes(status.appear);
+            //TIMELINE 1 fade out nodes and then remove them from the display
             Timeline fadeOut = fadeOutNodes(status.disappear);
+            Timeline fadeEdges = fadeOutEdges(status.edgesToRemove);
+            fadeOut.getKeyFrames().addAll(fadeEdges.getKeyFrames());
 
+            fadeOut.setOnFinished((removeNodes) -> {
+                System.out.println(status.disappear.size());
+                for (DataAndNodes data : status.disappear) {
+                    displayOverlay.getChildren().remove(data.getDisplayNode());
+                }
+                for (Node edge : status.edgesToRemove) {
+                    displayOverlay.getChildren().remove(edge);
+                }
+            });
+
+            //TIMELINE 2 determine nodes that are visible RIGHT NOW and move them to their correct locations
             Set<DataAndNodes> visible = new HashSet<>(status.shouldBeVisible);
             visible.removeAll(status.appear);
             Timeline moveNodes = reconcilePrepAndDisplay(visible);
+
+            //TIMELINE 3 add nodes to display, move them to the correct location and then fade in
+            Set<Node> appearing = new HashSet<>();
             for (DataAndNodes data : status.appear) {
+                displayOverlay.getChildren().add(data.getDisplayNode());
                 data.getDisplayNode().setLayoutX(ltsX(data.getPreparationNode()));
                 data.getDisplayNode().setLayoutY(ltsY(data.getPreparationNode()));
+                appearing.add(data.getDisplayNode());
             }
+            Timeline appear = fadeInDesiredNodes(appearing);
+            Timeline fadeInEdges = fadeInEdges(status.edgesToAdd);
+
+            displayOverlay.getChildren().addAll(status.edgesToAdd);
+            appear.getKeyFrames().addAll(fadeInEdges.getKeyFrames());
+
+            fadeOut.play();
+
             moveNodes.setOnFinished((move_event) -> {
                 appear.play();
-                fadeOut.play();
-                PauseTransition recalculateHeights = new PauseTransition(Duration.seconds(1));
+                //after a suitable delay, recalculate the heights and positions again
+                PauseTransition recalculateHeights = new PauseTransition(Duration.seconds(0.5));
                 recalculateHeights.setOnFinished((wait_event) -> {
                     reconcilePrepAndDisplay(currentlyVisible);
                 });
@@ -364,16 +372,16 @@ public class DepthGraphDisplay {
 
     /**
      * Determine whether nodes should be visible based on the node visibility criteria in the node visibility filter
-     *
+     * <p>
      * Compare the set of nodes that should be visible with the set that is currently visible.
-     *
+     * <p>
      * Store in a NodeStatus object those which are not visible, but should be (appear), are visible but
      * should not be (disappear) and which are currently visible and should stay so (shouldBeVisible)
      *
      * @return an object containing a list of nodes which are not visible, but should be (appear), are visible but
      * should not be (disappear) and which are currently visible and should stay so (shouldBeVisible)
      */
-    private NodeStatus refreshNodeVisibility() {
+    private NodeStatus assessNodeVisibility() {
         NodeStatus status = new NodeStatus();
         //find all nodes that should be visible
         status.shouldBeVisible = new HashSet<>(allNodesIDMap.values());
@@ -385,9 +393,31 @@ public class DepthGraphDisplay {
         status.appear = new HashSet<>(status.shouldBeVisible);
         status.appear.removeAll(currentlyVisible);
 
+        //iterate through nodes that are determined to be appearing and add a node for each.
+        // NB: createEdge() curates maps but does not add them to the display - this is done separately.
+        for (DataAndNodes appearing : status.appear) {
+            for (String otherVertexId : appearing.getVertexData().getConnectedVertices()) {
+                if (status.shouldBeVisible.stream().map(data -> data.getVertexData().getId()).collect(Collectors.toList()).contains(otherVertexId)) {
+                    status.edgesToAdd.add(createEdge(allNodesIDMap.get(otherVertexId), appearing));
+                }
+            }
+        }
+
         //nodes that shouldn't be visible, but are
         for (DataAndNodes data : toBeRemoved) {
             if (currentlyVisible.contains(data)) status.disappear.add(data);
+        }
+        for (DataAndNodes data : currentlyVisible) {
+            if (!status.shouldBeVisible.contains(data)) status.disappear.add(data);
+        }
+
+        //from status.disappear, determine connected edges and add them to edgesToRemove
+        List<Set<Shape>> edgeLists = displayNodeToEdgesMap.entrySet()
+                .stream()
+                .filter(entry -> status.disappear.contains(entry.getKey()))
+                .map(Map.Entry::getValue).collect(Collectors.toList());
+        for (Set<Shape> edgeList : edgeLists) {
+            status.edgesToRemove.addAll(edgeList);
         }
 
         currentlyVisible = status.shouldBeVisible;
@@ -398,11 +428,12 @@ public class DepthGraphDisplay {
 
     /**
      * Create a timeline that fades out the nodes that should not be visible in the display
+     *
      * @param disappear a set of nodes which should be faded out
      * @return a timeline that fades out the nodes that should not be visible in the display
      */
     private Timeline fadeOutNodes(Set<DataAndNodes> disappear) {
-        Timeline fadeOut = new Timeline();
+        Timeline fadeOut = new Timeline(30);
         for (DataAndNodes data : disappear) {
             fadeOut.getKeyFrames().addAll(
                     new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().opacityProperty(), data.getDisplayNode().getOpacity())),
@@ -412,16 +443,49 @@ public class DepthGraphDisplay {
     }
 
     /**
+     * Create a timeline that fades out the nodes that should not be visible in the display
+     *
+     * @param disappear a set of nodes which should be faded out
+     * @return a timeline that fades out the nodes that should not be visible in the display
+     */
+    private Timeline fadeOutEdges(Set<Shape> disappear) {
+        Timeline fadeOut = new Timeline(30);
+        for (Shape shape : disappear) {
+            fadeOut.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(shape.strokeWidthProperty(), shape.getStrokeWidth())),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(shape.strokeWidthProperty(), 0)));
+        }
+        return fadeOut;
+    }
+
+    /**
      * Create a timeline that fades in the nodes that should be visible in the display
+     *
      * @param appear a set of nodes which should be faded in
      * @return a timeline that fades in the nodes that should be visible in the display
      */
-    private Timeline fadeInDesiredNodes(Set<DataAndNodes> appear) {
-        Timeline fadeIn = new Timeline();
-        for (DataAndNodes data : appear) {
+    private Timeline fadeInDesiredNodes(Set<Node> appear) {
+        Timeline fadeIn = new Timeline(30);
+        for (Node data : appear) {
             fadeIn.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().opacityProperty(), data.getDisplayNode().getOpacity())),
-                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(data.getDisplayNode().opacityProperty(), 1)));
+                    new KeyFrame(Duration.millis(0), new KeyValue(data.opacityProperty(), 0)),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(data.opacityProperty(), 1)));
+        }
+        return fadeIn;
+    }
+
+    /**
+     * Create a timeline that fades in the nodes that should be visible in the display
+     *
+     * @param appear a set of nodes which should be faded in
+     * @return a timeline that fades in the nodes that should be visible in the display
+     */
+    private Timeline fadeInEdges(Set<Shape> appear) {
+        Timeline fadeIn = new Timeline(30);
+        for (Shape shape : appear) {
+            fadeIn.getKeyFrames().addAll(
+                    new KeyFrame(Duration.millis(0), new KeyValue(shape.strokeWidthProperty(), 0)),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(shape.strokeWidthProperty(), 1)));
         }
         return fadeIn;
     }
@@ -430,7 +494,7 @@ public class DepthGraphDisplay {
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
     private Timeline reconcilePrepAndDisplay(Set<DataAndNodes> nodes) {
-        Timeline movementTimeline = new Timeline();
+        Timeline movementTimeline = new Timeline(30);
         for (DataAndNodes data : nodes) {
             Region disp = (Region) data.getDisplayNode();
             Region prep = (Region) data.getPreparationNode();
@@ -553,35 +617,7 @@ public class DepthGraphDisplay {
                 });
     }
 
-    /**
-     * Class denoting
-     */
-    void initialVisibilityFilter() {
-
-    }
-
-    private void addEdges(Set<DataAndNodes> vertexMap, double opacity) {
-        //determine variables based on plotting direction
-        DepthDirection searchDirection = plottingDirection == HorizontalDirection.LEFT ? DepthDirection.INCREASING_DEPTH : DepthDirection.DECREASING_DEPTH;
-
-        //add edges
-        List<VertexData> unvisitedNodes = Graph.getLeavesUnidirectional(searchDirection, vertexMap.stream().map(DataAndNodes::getVertexData).collect(Collectors.toList()));
-        List<VertexData> visitedNodes = new ArrayList<>();
-        while (unvisitedNodes.size() > 0) {
-            VertexData currentVertex = unvisitedNodes.remove(0);
-            visitedNodes.add(currentVertex);
-
-            currentVertex.getConnectedVertices().stream()
-                    .filter(id -> !visitedNodes.contains(id) &&
-                            vertexMap.stream().map(data -> data.getVertexData().getId()).collect(Collectors.toList()).contains(id))
-                    .forEach(id -> unvisitedNodes.add(allNodesIDMap.get(id).getVertexData()));
-
-            currentVertex.getConnectedVertices().stream().filter(vertexMap::contains)
-                    .map(id -> allNodesIDMap.get(id).getVertexData())
-                    .filter(endVertex -> plottingDirection == HorizontalDirection.LEFT ? endVertex.getDepth() < currentVertex.getDepth() : endVertex.getDepth() > currentVertex.getDepth())
-                    .forEach(endVertex -> createEdge(allNodesIDMap.get(currentVertex.getId()), allNodesIDMap.get(endVertex.getId()), opacity));
-        }
-    }
+    boolean preventDefaultHighlight = false;
 
     /**
      * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
@@ -617,8 +653,11 @@ public class DepthGraphDisplay {
 
         addMouseActions(vertexId, event);
 
-        highlightSelectedNodes();
-        lowlightUnselectedNodes();
+        if (!preventDefaultHighlight) {
+            highlightSelectedNodes();
+            lowlightUnselectedNodes();
+            preventDefaultHighlight = false;
+        }
 
         event.consume();
     }
@@ -626,8 +665,9 @@ public class DepthGraphDisplay {
     /**
      * Accessor method. After standard mouse-specific actions have been handled in handleSelection, provide
      * additional actions to be taken.
+     *
      * @param vertexId the id of the selected vertex
-     * @param event the mouse event that triggered the action
+     * @param event    the mouse event that triggered the action
      */
     void addMouseActions(String vertexId, MouseEvent event) {
 
@@ -770,7 +810,7 @@ public class DepthGraphDisplay {
      * @param vertex1 the first vertex
      * @param vertex2 the second vertex
      */
-    private void createEdge(DataAndNodes vertex1, DataAndNodes vertex2, double opacity) {
+    private Shape createEdge(DataAndNodes vertex1, DataAndNodes vertex2) {
         boolean v2_deeper_v1 = vertex2.getVertexData().getDepth() > vertex1.getVertexData().getDepth();
 
         Region startBox;
@@ -795,15 +835,14 @@ public class DepthGraphDisplay {
         edge.controlX2Property().bind(endBox.layoutXProperty().subtract(50));
         edge.controlY2Property().bind(endBox.layoutYProperty().add(endBox.heightProperty().divide(2)));
         edge.setStroke(Color.web("#003865"));
-        edge.setStrokeWidth(0.75);
+        edge.setStrokeWidth(0);
         edge.setStrokeLineCap(StrokeLineCap.ROUND);
         edge.setFill(Color.TRANSPARENT);
 
-        edge.setOpacity(opacity);
-        displayOverlay.getChildren().add(0, edge);
+        linkVertexToEdge(vertex1, edge);
+        linkVertexToEdge(vertex2, edge);
 
-        linkVertexToEdge(startBox, edge);
-        linkVertexToEdge(endBox, edge);
+        return edge;
     }
 
     /**
@@ -813,9 +852,9 @@ public class DepthGraphDisplay {
      * @param vertex the vertex to which the edge should be bound
      * @param edge   the edge
      */
-    private void linkVertexToEdge(Node vertex, Node edge) {
-        displayNodeToEdgesMap.computeIfAbsent(vertex, k -> new ArrayList<>());
-        if (!displayNodeToEdgesMap.get(vertex).contains(edge)) displayNodeToEdgesMap.get(vertex).add(edge);
+    private void linkVertexToEdge(DataAndNodes vertex, Shape edge) {
+        displayNodeToEdgesMap.computeIfAbsent(vertex, k -> new HashSet<>());
+        displayNodeToEdgesMap.get(vertex).add(edge);
     }
 
     /**
@@ -903,6 +942,8 @@ public class DepthGraphDisplay {
         Set<DataAndNodes> shouldBeVisible = new HashSet<>();
         Set<DataAndNodes> appear = new HashSet<>();
         Set<DataAndNodes> disappear = new HashSet<>();
+        Set<Shape> edgesToRemove = new HashSet<>();
+        Set<Shape> edgesToAdd = new HashSet<>();
 
         NodeStatus() {
         }

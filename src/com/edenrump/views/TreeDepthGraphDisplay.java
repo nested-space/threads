@@ -88,9 +88,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     .stream()
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             visibleNodesFilters.add(selectorFilter);
-            resetHighlightingOnAllNodes();
             selectedVertices.setAll(vertexId);
             requestLayoutPass();
+            event.consume();
         } else {
             selectorFilter = entry -> true;
         }
