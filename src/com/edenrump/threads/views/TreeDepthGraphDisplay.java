@@ -14,14 +14,15 @@ import com.edenrump.toolkit.graph.DepthDirection;
 import com.edenrump.toolkit.graph.Graph;
 import com.edenrump.toolkit.models.VertexData;
 import com.edenrump.toolkit.ui.DepthGraphDisplay;
+import javafx.collections.ObservableList;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.geometry.VerticalDirection;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.Collections;
@@ -148,7 +149,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     @Override
     public ContextMenu multipleSelectionContextMenu(String id) {
-        Menu menu = new Menu("Delete");
+        final MenuItem title = new MenuItem("Node Options");
+
+        Menu delMenu = new Menu("Delete");
         MenuItem delete = new MenuItem("Delete last selected");
         delete.setOnAction(event -> deleteVertex(id));
         MenuItem deleteAll = new MenuItem("Delete all");
@@ -157,8 +160,47 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                 deleteVertex(vertex);
             }
         });
-        menu.getItems().addAll(delete, deleteAll);
-        return new ContextMenu(menu);
+        delMenu.getItems().addAll(delete, deleteAll);
+
+        Menu colorMenu = new Menu("Set color");
+        Menu standardColors = new Menu("AZ Palette");
+        Menu customColors = new Menu("Custom Color");
+
+        MenuItem l = colorContextMenuItem("Lime", "#c4d600");
+        MenuItem g = colorContextMenuItem("Gold", "#f0ab00");
+        MenuItem lb = colorContextMenuItem("Light Blue", "#D1DBE3");
+        MenuItem n = colorContextMenuItem("Navy", "#003865");
+        MenuItem m = colorContextMenuItem("Mulberry", "#830051");
+        MenuItem r = colorContextMenuItem("Red", "#EA3C53");
+        MenuItem gr = colorContextMenuItem("Green", "#50C878");
+        standardColors.getItems().addAll(m, n, l, g, lb, r, gr);
+
+        ColorPicker cp = new ColorPicker();
+        cp.setStyle("-fx-background-color: white;");
+        final MenuItem colorPickerMenuItem = new MenuItem(null, cp);
+        colorPickerMenuItem.setOnAction(event -> changeSelectedItemColors(cp.getValue().toString()));
+        customColors.getItems().add(colorPickerMenuItem);
+
+        colorMenu.getItems().addAll(standardColors, customColors);
+
+        return new ContextMenu(title, delMenu, colorMenu);
+    }
+
+    private MenuItem colorContextMenuItem(String cName, String cValue) {
+        MenuItem item = new MenuItem(cName);
+        item.setId(cValue);
+        item.setOnAction((e) -> changeSelectedItemColors(cValue));
+        return item;
+    }
+
+    private void changeSelectedItemColors(String color) {
+        ObservableList<String> vertices = getSelectedVerticesObservableList();
+        for (String id : vertices) {
+            VertexData v = getAllNodesIDMap().get(id).getVertexData();
+            v.overwriteProperty("color", color);
+            updateVertex(id, v);
+        }
+
     }
 
     /**

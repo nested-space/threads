@@ -312,7 +312,7 @@ public class DepthGraphDisplay {
      * Fade in nodes that should be visible, fade out those that should not be visible. Move display nodes to their
      * correct locations.
      */
-    public void updateLayout(){
+    public void updateLayout() {
         NodeStatus status = assessNodeVisibility();
         layoutPreparationDisplay(currentlyVisible);
 
@@ -377,10 +377,15 @@ public class DepthGraphDisplay {
      * Update colours for all nodes based on the associated vertex data
      */
     private void updateColors() {
-        for(Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()){
-            if(entry.getValue().getVertexData().hasProperty("color")){
-                ((TitledContentPane) entry.getValue().getDisplayNode())
-                        .setHeaderColor(Color.web(entry.getValue().getVertexData().getProperty("color")));
+        for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
+            if (entry.getValue().getVertexData().hasProperty("color")) {
+                Color color = Color.web(entry.getValue().getVertexData().getProperty("color"));
+                TitledContentPane node = (TitledContentPane) entry.getValue().getDisplayNode();
+                node.setHeaderColor(color);
+                if (color.getBrightness() < 0.7) {
+                    System.out.println(color + " has brightness " + color.getBrightness() + " so setting color to white!");
+                    node.setTextColor(Color.WHITE);
+                }
             }
         }
     }
@@ -703,8 +708,10 @@ public class DepthGraphDisplay {
                     }
                 });
 
-        TitledContentPane last = (TitledContentPane) allNodesIDMap.get(lastSelected.getId()).getDisplayNode();
-        last.highlightTwo();
+        if (lastSelected != null) {
+            TitledContentPane last = (TitledContentPane) allNodesIDMap.get(lastSelected.getId()).getDisplayNode();
+            last.highlightTwo();
+        }
     }
 
     public void lowlightUnselectedNodes() {
@@ -777,7 +784,7 @@ public class DepthGraphDisplay {
                 .map(data -> data.getVertexData().getPriority())
                 .collect(Collectors.toList());
 
-        if(siblingPriorities.size()==0) return rowPriorityIncrement;
+        if (siblingPriorities.size() == 0) return rowPriorityIncrement;
 
         return topOrBottom == VerticalDirection.DOWN ?
                 Collections.max(siblingPriorities) + rowPriorityIncrement :
@@ -896,23 +903,23 @@ public class DepthGraphDisplay {
         return new HashMap<>(allNodesIDMap);
     }
 
-    public void clearVisibilityFilters(){
+    public void clearVisibilityFilters() {
         visibleNodesFilters.clear();
     }
 
-    public void addVisibilityFilter(Predicate<? super DataAndNodes> filter){
+    public void addVisibilityFilter(Predicate<? super DataAndNodes> filter) {
         visibleNodesFilters.add(filter);
     }
 
-    public void removeVisibilityFilter(Predicate<? super DataAndNodes> filter){
+    public void removeVisibilityFilter(Predicate<? super DataAndNodes> filter) {
         visibleNodesFilters.remove(filter);
     }
 
-    public void clearSelectedVertices(){
+    public void clearSelectedVertices() {
         selectedVertices.clear();
     }
 
-    public void addSelectedVertex(String id){
+    public void addSelectedVertex(String id) {
         selectedVertices.add(id);
     }
 

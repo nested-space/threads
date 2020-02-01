@@ -13,10 +13,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 
 import java.util.HashMap;
@@ -52,6 +49,8 @@ public class TitledContentPane extends VBox {
      * Pane that holds all tags
      */
     private VBox tagContainer = new VBox();
+
+    private Color textColor;
 
     /**
      * Create a placeholder box with no title or id and with the default color
@@ -121,6 +120,14 @@ public class TitledContentPane extends VBox {
         titlePane.setColor(color);
     }
 
+    public void setTextColor(Color color){
+        this.textColor = color;
+        titlePane.setTextColor(color);
+        for(Map.Entry<String, TitledRectangle> entry : idNodeMap.entrySet()){
+            entry.getValue().setTextColor(color);
+        }
+    }
+
     /**
      * Add an image to the pane. The image will appear below the title but above any tags
      * @param image the image to add
@@ -171,14 +178,12 @@ public class TitledContentPane extends VBox {
      * Set the style for the node when highlighted
      */
     public void highlightOne() {
-        String cssLayout = "-fx-border-color: #830051;\n";
-        setStyle(cssLayout);
+        setBorder(new Border(new BorderStroke(Color.web("#830051"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderStroke.THIN)));
         setOpacity(1);
     }
 
     public void highlightTwo() {
-        String cssLayout = "-fx-border-color: #f0AB00;\n";
-        setStyle(cssLayout);
+        setBorder(new Border(new BorderStroke(Color.web("#f0AB00"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderStroke.THIN)));
         setOpacity(1);
 
     }
@@ -188,8 +193,7 @@ public class TitledContentPane extends VBox {
      * Set the style for the node on occasions when you want it to be less visible within the scene graph
      */
     public void lowlight() {
-        String cssLayout = "-fx-border-color: #003865;\n";
-        setStyle(cssLayout);
+        setBorder(new Border(new BorderStroke(Color.web("#003865"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderStroke.THIN)));
         setOpacity(0.3);
     }
 
@@ -197,8 +201,7 @@ public class TitledContentPane extends VBox {
      * Reset the style of the node to its default style
      */
     public void resetHighlighting(){
-        String cssLayout = "-fx-border-color: #003865;\n";
-        setStyle(cssLayout);
+        setBorder(new Border(new BorderStroke(Color.web("#003865"), BorderStrokeStyle.SOLID, CornerRadii.EMPTY, BorderStroke.THIN)));
         setOpacity(1);
     }
 

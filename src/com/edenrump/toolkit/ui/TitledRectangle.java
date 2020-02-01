@@ -126,4 +126,8 @@ public class TitledRectangle extends StackPane {
     public void setColor(Color colour) {
         this.setBackground(new Background(new BackgroundFill(colour, CornerRadii.EMPTY, Insets.EMPTY)));
     }
+
+    public void setTextColor(Color color) {
+        mLabel.setTextFill(color);
+    }
 }
