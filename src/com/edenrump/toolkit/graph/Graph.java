@@ -7,10 +7,9 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.graph;
+package com.edenrump.toolkit.graph;
 
-import com.edenrump.models.VertexData;
-import com.edenrump.views.DepthGraphDisplay;
+import com.edenrump.toolkit.models.VertexData;
 
 import java.util.*;
 import java.util.stream.Collectors;

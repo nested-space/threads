@@ -7,14 +7,11 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.config;
+package com.edenrump.toolkit.graph;
 
-public class Defaults {
-    public static final String APPLICATION_NAME = "Threads";
-    public static final double FADE_TIME = 200;
-    public static final double ANIMATION_LENGTH = 250;
-
-    public static String createTitle(String suffix) {
-        return APPLICATION_NAME + " | " + suffix;
-    }
+/**
+ * Enum representing whether the depth is increasing or decreasing
+ */
+public enum DepthDirection {
+    INCREASING_DEPTH, DECREASING_DEPTH
 }

@@ -7,12 +7,10 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.graph;
+package com.edenrump.toolkit.graph;
 
-import com.edenrump.models.VertexData;
+import com.edenrump.toolkit.models.VertexData;
 import javafx.scene.Node;
-
-import java.util.Timer;
 
 /**
  * Class representing the information necessary to link the vertex data with its preparation node and its

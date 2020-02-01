@@ -7,14 +7,14 @@
  *  *****************************************************************************
  */
 
-package com.edenrump;
+package com.edenrump.threads;
 
-import com.edenrump.config.Defaults;
-import com.edenrump.loaders.JSONLoader;
-import com.edenrump.models.ThreadsData;
-import com.edenrump.models.VertexData;
-import com.edenrump.views.DepthGraphDisplay;
-import com.edenrump.views.TreeDepthGraphDisplay;
+import com.edenrump.toolkit.config.Defaults;
+import com.edenrump.toolkit.loaders.JSONLoader;
+import com.edenrump.toolkit.models.ThreadsData;
+import com.edenrump.toolkit.models.VertexData;
+import com.edenrump.toolkit.ui.DepthGraphDisplay;
+import com.edenrump.threads.views.TreeDepthGraphDisplay;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;

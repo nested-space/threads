@@ -7,9 +7,9 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.loaders;
+package com.edenrump.toolkit.loaders;
 
-import com.edenrump.models.ThreadsData;
+import com.edenrump.toolkit.models.ThreadsData;
 import com.google.gson.Gson;
 
 import java.io.*;

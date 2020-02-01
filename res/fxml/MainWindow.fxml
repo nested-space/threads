@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.layout.HBox?>
-<BorderPane fx:id="borderBase" fx:controller="com.edenrump.MainWindowController"
+<BorderPane fx:id="borderBase" fx:controller="com.edenrump.threads.MainWindowController"
             stylesheets="/css/Global.css"
             xmlns:fx="http://javafx.com/fxml" prefHeight="600" prefWidth="1200">
     <center>

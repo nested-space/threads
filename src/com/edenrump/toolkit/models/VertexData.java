@@ -7,12 +7,10 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.models;
+package com.edenrump.toolkit.models;
 
-import javafx.beans.property.ReadOnlyMapProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.beans.property.SimpleMapProperty;
 
 import java.util.*;
 

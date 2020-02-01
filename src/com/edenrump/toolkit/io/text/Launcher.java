@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.io.text;
+package com.edenrump.toolkit.io.text;
 
 import javafx.application.Application;
 import javafx.stage.Stage;

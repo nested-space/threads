@@ -7,9 +7,9 @@
  *  *****************************************************************************
  */
 
-package com.edenrump;
+package com.edenrump.threads;
 
-import com.edenrump.config.Defaults;
+import com.edenrump.toolkit.config.Defaults;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;

@@ -7,12 +7,11 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.views;
+package com.edenrump.toolkit.ui;
 
-import com.edenrump.graph.DataAndNodes;
-import com.edenrump.graph.Graph;
-import com.edenrump.models.VertexData;
-import com.edenrump.ui.nodes.TitledContentPane;
+import com.edenrump.toolkit.graph.DataAndNodes;
+import com.edenrump.toolkit.graph.Graph;
+import com.edenrump.toolkit.models.VertexData;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
@@ -30,7 +29,6 @@ import javafx.geometry.VerticalDirection;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseButton;
@@ -42,12 +40,11 @@ import javafx.scene.shape.Shape;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
-import javax.xml.crypto.Data;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static com.edenrump.config.Defaults.ANIMATION_LENGTH;
+import static com.edenrump.toolkit.config.Defaults.ANIMATION_LENGTH;
 
 /**
  * Class representing a display pane for a graph
@@ -150,9 +147,9 @@ public class DepthGraphDisplay {
             lastSelected = null;
         });
 
+        preparationContainer.setAlignment(Pos.TOP_LEFT);
         preparationContainer.setPadding(new Insets(25, 25, 25, 35));
         preparationContainer.setSpacing(125);
-        preparationContainer.setAlignment(Pos.CENTER);
         preparationContainer.setOpacity(0);
         preparationContainer.setMouseTransparent(true);
     }
@@ -301,7 +298,7 @@ public class DepthGraphDisplay {
         updateDisplay();
     }
 
-    void updateDisplay() {
+    public void updateDisplay() {
         updateLayout();
         updateColors();
     }
@@ -315,7 +312,7 @@ public class DepthGraphDisplay {
      * Fade in nodes that should be visible, fade out those that should not be visible. Move display nodes to their
      * correct locations.
      */
-    void updateLayout(){
+    public void updateLayout(){
         NodeStatus status = assessNodeVisibility();
         layoutPreparationDisplay(currentlyVisible);
 
@@ -376,6 +373,9 @@ public class DepthGraphDisplay {
         wait.play();
     }
 
+    /**
+     * Update colours for all nodes based on the associated vertex data
+     */
     private void updateColors() {
         for(Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()){
             if(entry.getValue().getVertexData().hasProperty("color")){
@@ -595,7 +595,7 @@ public class DepthGraphDisplay {
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
         displayNode.setId(data.getId());
         displayNode.setOnContextMenuRequested(event -> {
-            showContextMenu(displayNode, standardVertexContextMenu(data.getId()), event);
+            showContextMenu(displayNode, multipleSelectionContextMenu(data.getId()), event);
             event.consume();
         });
         displayNode.setOnMouseClicked(event -> handleSelection(data.getId(), event));
@@ -684,15 +684,14 @@ public class DepthGraphDisplay {
      * @param vertexId the id of the selected vertex
      * @param event    the mouse event that triggered the action
      */
-    void addMouseActions(String vertexId, MouseEvent event) {
+    public void addMouseActions(String vertexId, MouseEvent event) {
 
     }
 
     /**
      * Separate vertex nodes by selection. Highlight selected nodes. Lowlight unselected nodes.
      */
-    void highlightSelectedNodes() {
-
+    public void highlightSelectedNodes() {
         selectedVertices.stream()
                 .map(id -> (TitledContentPane) allNodesIDMap.get(id).getDisplayNode())
                 .forEach(pane -> {
@@ -700,7 +699,7 @@ public class DepthGraphDisplay {
                     if (selectedVertices.size() == 1) {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
                     } else {
-                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, standardVertexContextMenu(pane.getId()), e));
+                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, multipleSelectionContextMenu(pane.getId()), e));
                     }
                 });
 
@@ -708,7 +707,7 @@ public class DepthGraphDisplay {
         last.highlightTwo();
     }
 
-    void lowlightUnselectedNodes() {
+    public void lowlightUnselectedNodes() {
         allNodesIDMap.values().stream().map(DataAndNodes::getVertexData) //all vertices
                 .filter(v -> !selectedVertices.contains(v.getId()))
                 .map(v -> (TitledContentPane) allNodesIDMap.get(v.getId()).getDisplayNode())
@@ -721,7 +720,7 @@ public class DepthGraphDisplay {
     /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
-    void resetHighlightingOnAllNodes() {
+    public void resetHighlightingOnAllNodes() {
         for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
             TitledContentPane displayNode = (TitledContentPane) entry.getValue().getDisplayNode();
             displayNode.resetHighlighting();
@@ -765,31 +764,11 @@ public class DepthGraphDisplay {
      * @param id the id of the vertex
      * @return the context menu
      */
-    ContextMenu standardVertexContextMenu(String id) {
-        ContextMenu cm = new ContextMenu();
-
-        //TODO: calculate priority of task based on priority of task itself and priority of pre-existing connected nodes.
-        MenuItem addLessDepth = new MenuItem(plottingDirection == HorizontalDirection.RIGHT ? "<- Add Node Left" : "Add Node Right ->");
-        addLessDepth.setOnAction(event -> {
-            int depth = allNodesIDMap.get(id).getVertexData().getDepth() - 1;
-            createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
-                    depth,
-                    calculatePriority(depth, VerticalDirection.DOWN)));
-        });
-
-        MenuItem addMoreDepth = new MenuItem(plottingDirection == HorizontalDirection.RIGHT ? "Add Node Right ->" : "<- Add Node Left");
-        addMoreDepth.setOnAction(event -> {
-            int depth = allNodesIDMap.get(id).getVertexData().getDepth() + 1;
-            createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
-                    depth,
-                    calculatePriority(depth, VerticalDirection.DOWN)));
-        });
-
-        cm.getItems().addAll(addLessDepth, addMoreDepth);
-        return cm;
+    public ContextMenu multipleSelectionContextMenu(String id) {
+        return new ContextMenu();
     }
 
-    int calculatePriority(int depth, VerticalDirection topOrBottom) {
+    public int calculatePriority(int depth, VerticalDirection topOrBottom) {
         int rowPriorityIncrement = 32000;
 
         List<Integer> siblingPriorities = allNodesIDMap.values()
@@ -811,14 +790,8 @@ public class DepthGraphDisplay {
      * @param id the id of the vertex
      * @return the context menu
      */
-    private ContextMenu singleSelectedVertexContextMenu(String id) {
-        ContextMenu cm = standardVertexContextMenu(id);
-        MenuItem delete = new MenuItem("Delete");
-
-        delete.setOnAction(event -> deleteVertex(id));
-
-        cm.getItems().addAll(delete);
-        return cm;
+    public ContextMenu singleSelectedVertexContextMenu(String id) {
+        return new ContextMenu();
     }
 
     /**
@@ -904,7 +877,7 @@ public class DepthGraphDisplay {
      * @param title   the title of the column
      * @return a consistently-styled VBox for use in the preparation display.
      */
-    VBox createPrepColumn(List<String> nodeIds, Integer title) {
+    public VBox createPrepColumn(List<String> nodeIds, Integer title) {
         VBox body = new VBox();
         body.setSpacing(35);
         body.setAlignment(Pos.TOP_CENTER);
@@ -917,6 +890,30 @@ public class DepthGraphDisplay {
                 .forEachOrdered(data -> body.getChildren().add(allNodesIDMap.get(data.getId()).getPreparationNode()));
 
         return body;
+    }
+
+    public Map<String, DataAndNodes> getAllNodesIDMap() {
+        return new HashMap<>(allNodesIDMap);
+    }
+
+    public void clearVisibilityFilters(){
+        visibleNodesFilters.clear();
+    }
+
+    public void addVisibilityFilter(Predicate<? super DataAndNodes> filter){
+        visibleNodesFilters.add(filter);
+    }
+
+    public void removeVisibilityFilter(Predicate<? super DataAndNodes> filter){
+        visibleNodesFilters.remove(filter);
+    }
+
+    public void clearSelectedVertices(){
+        selectedVertices.clear();
+    }
+
+    public void addSelectedVertex(String id){
+        selectedVertices.add(id);
     }
 
     /**

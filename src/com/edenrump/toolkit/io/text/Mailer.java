@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.io.text;
+package com.edenrump.toolkit.io.text;
 
 import java.awt.*;
 import java.io.IOException;

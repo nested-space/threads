@@ -7,7 +7,7 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.models;
+package com.edenrump.toolkit.models;
 
 import java.util.ArrayList;
 import java.util.List;
