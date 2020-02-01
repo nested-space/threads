@@ -117,6 +117,7 @@ public class TitledContentPane extends VBox {
      */
     public void setHeaderColor(Color color) {
         this.color = color;
+        this.setBackground(new Background(new BackgroundFill(color, CornerRadii.EMPTY, Insets.EMPTY)));
         titlePane.setColor(color);
     }
 

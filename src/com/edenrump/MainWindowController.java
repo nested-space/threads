@@ -412,8 +412,8 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        File example = new File("res/examples/Example.wool");
-        return JSONLoader.loadOneFromJSON(new File("res/examples/Example.wool"));
+        File example = new File("res/examples/Example.json");
+        return JSONLoader.loadOneFromJSON(new File("res/examples/Example.json"));
     }
 
     /**
@@ -434,7 +434,6 @@ public class MainWindowController implements Initializable {
      */
     public void setStage(Stage stage) {
         this.stage = stage;
-
         stage.setOnCloseRequest((e) -> {
             if (programState == ProgramState.UNSAVED) {
                 if (cancelActionToSaveContent()) Platform.exit();

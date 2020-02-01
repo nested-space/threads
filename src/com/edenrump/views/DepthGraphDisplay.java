@@ -42,6 +42,7 @@ import javafx.scene.shape.Shape;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.util.Duration;
 
+import javax.xml.crypto.Data;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -224,7 +225,7 @@ public class DepthGraphDisplay {
             allNodesIDMap.get(id).getVertexData().addConnection(data.getId());
         });
 
-        requestLayoutPass();
+        updateDisplay();
     }
 
     /**
@@ -262,7 +263,7 @@ public class DepthGraphDisplay {
         updateNode(allNodesIDMap.get(id).getPreparationNode(), vertex);
         updateNode(allNodesIDMap.get(id).getDisplayNode(), vertex);
 
-        requestLayoutPass();
+        updateDisplay();
     }
 
     /**
@@ -288,7 +289,7 @@ public class DepthGraphDisplay {
         //curate user interface
         selectedVertices.clear();
 
-        requestLayoutPass();
+        updateDisplay();
         resetHighlightingOnAllNodes();
     }
 
@@ -297,7 +298,12 @@ public class DepthGraphDisplay {
      */
     private void recastDisplayFromCachedData() {
         clearNodes();
-        requestLayoutPass();
+        updateDisplay();
+    }
+
+    void updateDisplay() {
+        updateLayout();
+        updateColors();
     }
 
     /**
@@ -309,7 +315,7 @@ public class DepthGraphDisplay {
      * Fade in nodes that should be visible, fade out those that should not be visible. Move display nodes to their
      * correct locations.
      */
-    void requestLayoutPass() {
+    void updateLayout(){
         NodeStatus status = assessNodeVisibility();
         layoutPreparationDisplay(currentlyVisible);
 
@@ -368,6 +374,15 @@ public class DepthGraphDisplay {
             moveNodes.play();
         });
         wait.play();
+    }
+
+    private void updateColors() {
+        for(Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()){
+            if(entry.getValue().getVertexData().hasProperty("color")){
+                ((TitledContentPane) entry.getValue().getDisplayNode())
+                        .setHeaderColor(Color.web(entry.getValue().getVertexData().getProperty("color")));
+            }
+        }
     }
 
     /**

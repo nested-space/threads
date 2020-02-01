@@ -13,7 +13,6 @@ import com.edenrump.graph.DataAndNodes;
 import com.edenrump.graph.DepthDirection;
 import com.edenrump.graph.Graph;
 import com.edenrump.models.VertexData;
-import javafx.beans.property.IntegerProperty;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
 import javafx.geometry.VerticalDirection;
@@ -22,8 +21,6 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -94,7 +91,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             visibleNodesFilters.add(selectorFilter);
             selectedVertices.setAll(vertexId);
-            requestLayoutPass();
+            updateDisplay();
             event.consume();
         } else {
             selectorFilter = entry -> true;
