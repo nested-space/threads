@@ -169,11 +169,19 @@ public class TitledContentPane extends VBox {
     /**
      * Set the style for the node when highlighted
      */
-    public void highlight() {
-        String cssLayout = "-fx-border-color: red;\n";
+    public void highlightOne() {
+        String cssLayout = "-fx-border-color: #830051;\n";
         setStyle(cssLayout);
         setOpacity(1);
     }
+
+    public void highlightTwo() {
+        String cssLayout = "-fx-border-color: #f0AB00;\n";
+        setStyle(cssLayout);
+        setOpacity(1);
+
+    }
+
 
     /**
      * Set the style for the node on occasions when you want it to be less visible within the scene graph

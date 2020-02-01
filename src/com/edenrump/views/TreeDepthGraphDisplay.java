@@ -16,14 +16,19 @@ import com.edenrump.models.VertexData;
 import javafx.beans.property.IntegerProperty;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
+import javafx.geometry.VerticalDirection;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -135,4 +140,28 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
         return body;
     }
+
+    /**
+     * Simplest context menu associated with a vertex
+     *
+     * @param id the id of the vertex
+     * @return the context menu
+     */
+    @Override
+    ContextMenu standardVertexContextMenu(String id) {
+        ContextMenu cm = new ContextMenu();
+
+        MenuItem addMoreDepth = new MenuItem("Add Node Right ->");
+        addMoreDepth.setOnAction(event -> {
+            int depth = allNodesIDMap.get(id).getVertexData().getDepth() + 1;
+            createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
+                    depth,
+                    calculatePriority(depth, VerticalDirection.DOWN)));
+        });
+
+        cm.getItems().addAll(addMoreDepth);
+        return cm;
+    }
+
+
 }

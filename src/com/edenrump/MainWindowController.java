@@ -412,9 +412,8 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-//        File example = new File("res/examples/AceticAcid.json");
-//        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.json"));
-        return new ThreadsData("Example", UUID.randomUUID().toString(), new ArrayList<>());
+        File example = new File("res/examples/Example.wool");
+        return JSONLoader.loadOneFromJSON(new File("res/examples/Example.wool"));
     }
 
     /**
@@ -435,6 +434,14 @@ public class MainWindowController implements Initializable {
      */
     public void setStage(Stage stage) {
         this.stage = stage;
+
+        stage.setOnCloseRequest((e) -> {
+            if (programState == ProgramState.UNSAVED) {
+                if (cancelActionToSaveContent()) Platform.exit();
+            } else {
+                Platform.exit();
+            }
+        });
     }
 
     /**

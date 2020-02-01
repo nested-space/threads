@@ -574,7 +574,7 @@ public class DepthGraphDisplay {
 
         //Create node for display overlay
         TitledContentPane displayNode = convertDataToNode(data);
-        if (data.hasProperty("url")) prepNode.addTag("url", data.getProperty("url"));
+        if (data.hasProperty("url")) displayNode.addTag("url", data.getProperty("url"));
 
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
@@ -681,7 +681,7 @@ public class DepthGraphDisplay {
         selectedVertices.stream()
                 .map(id -> (TitledContentPane) allNodesIDMap.get(id).getDisplayNode())
                 .forEach(pane -> {
-                    pane.highlight();
+                    pane.highlightOne();
                     if (selectedVertices.size() == 1) {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
                     } else {
@@ -689,6 +689,8 @@ public class DepthGraphDisplay {
                     }
                 });
 
+        TitledContentPane last = (TitledContentPane) allNodesIDMap.get(lastSelected.getId()).getDisplayNode();
+        last.highlightTwo();
     }
 
     void lowlightUnselectedNodes() {
@@ -748,7 +750,7 @@ public class DepthGraphDisplay {
      * @param id the id of the vertex
      * @return the context menu
      */
-    private ContextMenu standardVertexContextMenu(String id) {
+    ContextMenu standardVertexContextMenu(String id) {
         ContextMenu cm = new ContextMenu();
 
         //TODO: calculate priority of task based on priority of task itself and priority of pre-existing connected nodes.
@@ -772,7 +774,7 @@ public class DepthGraphDisplay {
         return cm;
     }
 
-    private int calculatePriority(int depth, VerticalDirection topOrBottom) {
+    int calculatePriority(int depth, VerticalDirection topOrBottom) {
         int rowPriorityIncrement = 32000;
 
         List<Integer> siblingPriorities = allNodesIDMap.values()
@@ -780,6 +782,8 @@ public class DepthGraphDisplay {
                 .filter(data -> data.getVertexData().getDepth() == depth)
                 .map(data -> data.getVertexData().getPriority())
                 .collect(Collectors.toList());
+
+        if(siblingPriorities.size()==0) return rowPriorityIncrement;
 
         return topOrBottom == VerticalDirection.DOWN ?
                 Collections.max(siblingPriorities) + rowPriorityIncrement :

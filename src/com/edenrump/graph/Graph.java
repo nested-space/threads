@@ -118,6 +118,8 @@ public class Graph {
     }
 
     public static List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction, Map<String, DataAndNodes> nodeMap) {
+        if (!nodeMap.containsKey(vertexID)) return new ArrayList<>();
+
         VertexData currentVertex = nodeMap.get(vertexID).getVertexData();
         List<VertexData> unvisitedVertices = currentVertex.getConnectedVertices().stream()
                 .map(id -> nodeMap.get(id).getVertexData())
