@@ -9,12 +9,12 @@
 
 package com.edenrump.models;
 
+import javafx.beans.property.ReadOnlyMapProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleMapProperty;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Class representing a basic information node, which can have upstream and downstream links
@@ -45,7 +45,7 @@ public class VertexData implements Comparable<VertexData> {
     /**
      * the hyperlink associated with this vertex
      */
-    private String hyperlinkURL;
+    private Map<String, String> propertiesMap = new HashMap<>();
 
     /**
      * Create VertexData fron a name and a random id
@@ -64,7 +64,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param priority the priority of the vertex
      */
     public VertexData(String name, int depth, int priority) {
-        this(name, UUID.randomUUID().toString(), new ArrayList<>(), depth, priority, null);
+        this(name, UUID.randomUUID().toString(), new ArrayList<>(), depth, priority);
     }
 
     /**
@@ -74,7 +74,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param id   the id of the vertex
      */
     public VertexData(String name, String id) {
-        this(name, id, new ArrayList<>(), 0, 0, null);
+        this(name, id, new ArrayList<>(), 0, 0);
     }
 
     /**
@@ -84,13 +84,12 @@ public class VertexData implements Comparable<VertexData> {
      * @param id        the id of the vertex
      * @param connected a list of connected vertices by id
      */
-    public VertexData(String name, String id, List<String> connected, int depth, int priority, String hyperlinkURL) {
+    public VertexData(String name, String id, List<String> connected, int depth, int priority) {
         this.name = name;
         this.id = new ReadOnlyStringWrapper(id);
         this.connectedVertices = new ArrayList<>(connected);
         this.depth = depth;
         this.priority = priority;
-        this.hyperlinkURL = hyperlinkURL == null ? "" : hyperlinkURL;
     }
 
     public ReadOnlyObjectWrapper<VertexData> readOnly() {
@@ -193,13 +192,51 @@ public class VertexData implements Comparable<VertexData> {
         this.connectedVertices = new ArrayList<>(vertex.getConnectedVertices());
         this.depth = vertex.getDepth();
         this.priority = vertex.getPriority();
+        this.propertiesMap = vertex.propertiesMap;
     }
 
-    public String getHyperlinkURL() {
-        return hyperlinkURL;
+    /**
+     * If not already present, add a property to the vertex
+     * @param propertyName the name of the property
+     * @param propertyValue the value of the property
+     * @return whether the property was added
+     */
+    public boolean addProperty(String propertyName, String propertyValue){
+        if(propertiesMap.containsKey(propertyName)){
+            return false;
+        } else {
+            propertiesMap.put(propertyName, propertyValue);
+            return true;
+        }
     }
 
-    public void setHyperlinkURL(String hyperlinkURL) {
-        this.hyperlinkURL = hyperlinkURL;
+    /**
+     * Add a property to the vertex, overwriting any existing property of the same name
+     * @param propertyName the name of the property
+     * @param propertyValue the value of the property
+     */
+    public void overwriteProperty(String propertyName, String propertyValue){
+        propertiesMap.put(propertyName, propertyValue);
+    }
+
+    /**
+     * Remove a property from the vertex
+     * @param propertyName the name of the property
+     */
+    public void removeProperty(String propertyName){
+        propertiesMap.remove(propertyName);
+    }
+
+    public String getProperty(String propertyName){
+        return propertiesMap.get(propertyName);
+    }
+
+    /**
+     * Return whether the vertex has a property of the specified name
+     * @param propertyName the property name
+     * @return whether the vertex has a property of the specified name
+     */
+    public boolean hasProperty(String propertyName){
+        return propertiesMap.containsKey(propertyName);
     }
 }

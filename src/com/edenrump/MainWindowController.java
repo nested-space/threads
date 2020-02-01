@@ -23,7 +23,6 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -37,10 +36,7 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class MainWindowController implements Initializable {
@@ -126,7 +122,7 @@ public class MainWindowController implements Initializable {
             } else if (key.getCode() == KeyCode.A && key.isControlDown()) {
                 depthGraphDisplay.selectAll();
             } else if (key.getCode() == KeyCode.ENTER && key.isControlDown()) {
-                priority.set(priority.get()+32000);
+                priority.set(priority.get() + 32000);
                 depthGraphDisplay.createVertex(new VertexData("Module", 0, priority.get()));
             }
         }));
@@ -289,9 +285,9 @@ public class MainWindowController implements Initializable {
             Label hyperlinkKey = new Label("Hyperlink");
             hyperlinkKey.setPrefHeight(27);
             hyperlinkKey.setPrefWidth(120);
-            Label hyperlinkValue = new Label(vertex.getHyperlinkURL() == null ? "(none)" : vertex.getHyperlinkURL());
+            Label hyperlinkValue = new Label(vertex.hasProperty("url") ? vertex.getProperty("url") : "(none)");
             hyperlinkValue.setPrefWidth(151);
-            TextField hyperlinkEdit = new TextField(vertex.getHyperlinkURL() == null ? "" : vertex.getHyperlinkURL());
+            TextField hyperlinkEdit = new TextField(vertex.hasProperty("url")  ? vertex.getProperty("url") : "");
             hyperlinkEdit.setPrefWidth(151);
             hyperlinkEdit.setOnKeyPressed(event -> {
                         if (event.getCode() == KeyCode.ENTER) {
@@ -320,7 +316,7 @@ public class MainWindowController implements Initializable {
             edit.setOnAction(event -> {
                 holder.getChildren().removeAll(titleValue, hyperlinkValue);
                 titleEdit.setText(titleValue.getText());
-                hyperlinkEdit.setText(vertex.getHyperlinkURL() == null ? "" : vertex.getHyperlinkURL());
+                hyperlinkEdit.setText(vertex.hasProperty("url")  ? vertex.getProperty("url") : "");
                 holder.getChildren().addAll(titleEdit, hyperlinkEdit);
                 buttons.getChildren().setAll(cancel, confirm);
                 titleEdit.requestFocus();
@@ -354,10 +350,10 @@ public class MainWindowController implements Initializable {
         holder.getChildren().addAll(titleValue, hyperlinkValue);
 
         vertex.setName(titleEdit.getText());
-        vertex.setHyperlinkURL(hyperlinkEdit.getText());
+        vertex.overwriteProperty("url", hyperlinkEdit.getText());
 
         titleValue.setText(titleEdit.getText());
-        hyperlinkValue.setText(hyperlinkEdit.getText() == null ? "(none)" : vertex.getHyperlinkURL());
+        hyperlinkValue.setText(hyperlinkEdit.getText() == null ? "(none)" : vertex.getProperty("url"));
 
         depthGraphDisplay.updateVertex(vertex.getId(), vertex);
 
@@ -416,8 +412,9 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        File example = new File("res/examples/AceticAcid.json");
-        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.json"));
+//        File example = new File("res/examples/AceticAcid.json");
+//        return JSONLoader.loadOneFromJSON(new File("res/examples/AceticAcid.json"));
+        return new ThreadsData("Example", UUID.randomUUID().toString(), new ArrayList<>());
     }
 
     /**

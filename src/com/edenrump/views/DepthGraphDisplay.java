@@ -570,11 +570,11 @@ public class DepthGraphDisplay {
     private DataAndNodes generateNodes_LinkToData(VertexData data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
-        if (!data.getHyperlinkURL().equals("")) prepNode.addTag("url", data.getHyperlinkURL());
+        if (data.hasProperty("url")) prepNode.addTag("url", data.getProperty("url"));
 
         //Create node for display overlay
         TitledContentPane displayNode = convertDataToNode(data);
-        if (!data.getHyperlinkURL().equals("")) displayNode.addTag("url", data.getHyperlinkURL());
+        if (data.hasProperty("url")) prepNode.addTag("url", data.getProperty("url"));
 
         displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
         displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
@@ -757,8 +757,7 @@ public class DepthGraphDisplay {
             int depth = allNodesIDMap.get(id).getVertexData().getDepth() - 1;
             createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
                     depth,
-                    calculatePriority(depth, VerticalDirection.DOWN),
-                    ""));
+                    calculatePriority(depth, VerticalDirection.DOWN)));
         });
 
         MenuItem addMoreDepth = new MenuItem(plottingDirection == HorizontalDirection.RIGHT ? "Add Node Right ->" : "<- Add Node Left");
@@ -766,8 +765,7 @@ public class DepthGraphDisplay {
             int depth = allNodesIDMap.get(id).getVertexData().getDepth() + 1;
             createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
                     depth,
-                    calculatePriority(depth, VerticalDirection.DOWN),
-                    ""));
+                    calculatePriority(depth, VerticalDirection.DOWN)));
         });
 
         cm.getItems().addAll(addLessDepth, addMoreDepth);
@@ -868,11 +866,11 @@ public class DepthGraphDisplay {
         if (n instanceof TitledContentPane) {
             TitledContentPane tcp = (TitledContentPane) n;
             tcp.setTitle(v.getName());
-            if (!v.getHyperlinkURL().equals("")) {
+            if (v.hasProperty("url")) {
                 if (!tcp.hasTag("url")) {
-                    tcp.addTag("url", v.getHyperlinkURL());
+                    tcp.addTag("url", v.getProperty("url"));
                 } else {
-                    tcp.updateTag("url", v.getHyperlinkURL());
+                    tcp.updateTag("url", v.getProperty("url"));
                 }
             } else {
                 if (tcp.hasTag("url")) tcp.removeTag("url");
