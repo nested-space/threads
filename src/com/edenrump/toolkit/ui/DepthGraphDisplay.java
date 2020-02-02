@@ -114,7 +114,7 @@ public class DepthGraphDisplay {
     /**
      * Filter determining which nodes are visible in the display
      */
-    Set<Predicate<? super DataAndNodes>> visibleNodesFilters = new HashSet<>(Collections.singleton(entry -> true));
+    Set<Predicate<DataAndNodes>> visibleNodesFilters = new HashSet<>(Collections.singleton(entry -> true));
 
     /**
      * Create a new Process Display
@@ -222,7 +222,7 @@ public class DepthGraphDisplay {
             allNodesIDMap.get(id).getVertexData().addConnection(data.getId());
         });
 
-        updateDisplay();
+        requestDisplayUpdate();
     }
 
     /**
@@ -260,7 +260,7 @@ public class DepthGraphDisplay {
         updateNode(allNodesIDMap.get(id).getPreparationNode(), vertex);
         updateNode(allNodesIDMap.get(id).getDisplayNode(), vertex);
 
-        updateDisplay();
+        requestDisplayUpdate();
     }
 
     /**
@@ -286,7 +286,7 @@ public class DepthGraphDisplay {
         //curate user interface
         selectedVertices.clear();
 
-        updateDisplay();
+        requestDisplayUpdate();
         resetHighlightingOnAllNodes();
     }
 
@@ -295,10 +295,10 @@ public class DepthGraphDisplay {
      */
     private void recastDisplayFromCachedData() {
         clearNodes();
-        updateDisplay();
+        requestDisplayUpdate();
     }
 
-    public void updateDisplay() {
+    public void requestDisplayUpdate() {
         updateLayout();
         updateColors();
     }
@@ -328,7 +328,6 @@ public class DepthGraphDisplay {
             fadeOut.getKeyFrames().addAll(fadeEdges.getKeyFrames());
 
             fadeOut.setOnFinished((removeNodes) -> {
-                System.out.println(status.disappear.size());
                 for (DataAndNodes data : status.disappear) {
                     displayOverlay.getChildren().remove(data.getDisplayNode());
                 }
@@ -383,7 +382,6 @@ public class DepthGraphDisplay {
                 TitledContentPane node = (TitledContentPane) entry.getValue().getDisplayNode();
                 node.setHeaderColor(color);
                 if (color.getBrightness() < 0.7) {
-                    System.out.println(color + " has brightness " + color.getBrightness() + " so setting color to white!");
                     node.setTextColor(Color.WHITE);
                 }
             }
@@ -405,9 +403,16 @@ public class DepthGraphDisplay {
         NodeStatus status = new NodeStatus();
         //find all nodes that should be visible
         status.shouldBeVisible = new HashSet<>(allNodesIDMap.values());
-        for (Predicate<? super DataAndNodes> filter : visibleNodesFilters) {
-            status.shouldBeVisible = status.shouldBeVisible.stream().filter(filter).collect(Collectors.toSet());
-        }
+
+        Predicate<DataAndNodes> allPredicates = visibleNodesFilters.stream()
+                .reduce(p -> true, Predicate::and);
+
+        status.shouldBeVisible = status.shouldBeVisible.stream()
+                .filter(allPredicates).collect(Collectors.toSet());
+
+//        for (Predicate<? super DataAndNodes> filter : visibleNodesFilters) {
+//            status.shouldBeVisible = status.shouldBeVisible.stream().filter(filter).collect(Collectors.toSet());
+//        }
 
         //nodes that should be visible but aren't
         status.appear = new HashSet<>(status.shouldBeVisible);
@@ -907,7 +912,7 @@ public class DepthGraphDisplay {
         visibleNodesFilters.clear();
     }
 
-    public void addVisibilityFilter(Predicate<? super DataAndNodes> filter) {
+    public void addVisibilityFilter(Predicate<DataAndNodes> filter) {
         visibleNodesFilters.add(filter);
     }
 

@@ -20,9 +20,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VerticalDirection;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.util.Collections;
@@ -65,13 +62,14 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     public TreeDepthGraphDisplay(ScrollPane display) {
         super(display, PLOTTING_DIRECTION);
-        addVisibilityFilter(entry -> entry.getVertexData().getDepth() == 0);
+        selectorFilter = entry -> entry.getVertexData().getDepth() == 0;
+        addVisibilityFilter(selectorFilter);
     }
 
     /**
      * The selection filter to be applied whenever a layoutPass is requested
      */
-    Predicate<? super DataAndNodes> selectorFilter;
+    Predicate<DataAndNodes> selectorFilter;
 
     /**
      * Determine whether the secondary button has launched the event. If so, return.
@@ -87,14 +85,17 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     public void addMouseActions(String vertexId, MouseEvent event) {
         if (getAllNodesIDMap().get(vertexId).getVertexData().getDepth() == 0) {
             selectedRootNode = getAllNodesIDMap().get(vertexId);
-            clearVisibilityFilters();
+
+            removeVisibilityFilter(selectorFilter);
             selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllNodesIDMap())
                     .stream()
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             addVisibilityFilter(selectorFilter);
+
             clearSelectedVertices();
             addSelectedVertex(vertexId);
-            updateDisplay();
+
+            requestDisplayUpdate();
             event.consume();
         } else {
             selectorFilter = entry -> true;

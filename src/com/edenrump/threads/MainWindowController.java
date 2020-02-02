@@ -9,12 +9,16 @@
 
 package com.edenrump.threads;
 
+import com.edenrump.threads.views.TreeDepthGraphDisplay;
 import com.edenrump.toolkit.config.Defaults;
+import com.edenrump.toolkit.graph.DataAndNodes;
+import com.edenrump.toolkit.graph.DepthDirection;
+import com.edenrump.toolkit.graph.Graph;
 import com.edenrump.toolkit.loaders.JSONLoader;
 import com.edenrump.toolkit.models.ThreadsData;
 import com.edenrump.toolkit.models.VertexData;
 import com.edenrump.toolkit.ui.DepthGraphDisplay;
-import com.edenrump.threads.views.TreeDepthGraphDisplay;
+import com.sun.xml.internal.ws.policy.EffectiveAlternativeSelector;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -31,12 +35,17 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.ResourceBundle;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class MainWindowController implements Initializable {
@@ -142,28 +151,82 @@ public class MainWindowController implements Initializable {
         menu.setMinHeight(25);
 
         Menu file = new Menu("_File");
-
         MenuItem newFile = new MenuItem("_New");
         newFile.setOnAction(actionEvent -> createNew());
-
         MenuItem openFile = new MenuItem("_Open");
         openFile.setOnAction(actionEvent -> loadFile());
-
         MenuItem saveFile = new MenuItem("_Save");
         saveFile.setOnAction(event -> saveFile());
-
         MenuItem close = new MenuItem("_Close");
-        close.setOnAction(event -> {
-            if (programState == ProgramState.UNSAVED) {
-                if (cancelActionToSaveContent()) Platform.exit();
-            } else {
-                Platform.exit();
-            }
+        close.setOnAction(event -> closeFile());
+        file.getItems().setAll(newFile, openFile, saveFile, close);
+
+        Menu view = new Menu("_View");
+
+        MenuItem clearFilters = new MenuItem("Clear filters");
+        clearFilters.setOnAction(e -> {
+            clearCurrentVisibilityFilters();
+            depthGraphDisplay.requestDisplayUpdate();
         });
 
-        file.getItems().setAll(newFile, openFile, saveFile, close);
-        menu.getMenus().add(file);
+        Menu filter = new Menu("_Filter");
+
+        MenuItem l = colorFilterMenuItem("Lime", "#c4d600");
+        MenuItem g = colorFilterMenuItem("Gold", "#f0ab00");
+        MenuItem lb = colorFilterMenuItem("Light Blue", "#D1DBE3");
+        MenuItem n = colorFilterMenuItem("Navy", "#003865");
+        MenuItem m = colorFilterMenuItem("Mulberry", "#830051");
+        MenuItem r = colorFilterMenuItem("Red", "#EA3C53");
+        MenuItem gr = colorFilterMenuItem("Green", "#50C878");
+        filter.getItems().addAll(m, n, l, g, lb, r, gr);
+
+        view.getItems().addAll(clearFilters, filter);
+
+        menu.getMenus().addAll(file, view);
         borderPane.setTop(menu);
+    }
+
+    private void clearCurrentVisibilityFilters() {
+        for (Predicate<? super DataAndNodes> filter: visibilityFilters){
+            depthGraphDisplay.removeVisibilityFilter(filter);
+        }
+        visibilityFilters.clear();
+    }
+
+    private List<Predicate<? super DataAndNodes>> visibilityFilters = new ArrayList<>();
+
+    private MenuItem colorFilterMenuItem(String cName, String cValue) {
+        MenuItem m = new MenuItem(cName);
+
+        Predicate<DataAndNodes> filter = data -> {
+            if (!data.getVertexData().hasProperty("color")) return false;
+
+            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllNodesIDMap());
+            for (VertexData vertex : downstream) {
+                if (!vertex.hasProperty("color")) continue;
+                if (sameColor(vertex.getProperty("color"), cValue)) return true;
+            }
+            return sameColor(data.getVertexData().getProperty("color"), cValue);
+        };
+
+        m.setOnAction(e -> {
+            //clear current filters
+            clearCurrentVisibilityFilters();
+            visibilityFilters.add(filter);
+            depthGraphDisplay.addVisibilityFilter(filter);
+            depthGraphDisplay.requestDisplayUpdate();
+        });
+        return m;
+    }
+
+    private boolean sameColor(String cValue1, String cValue2) {
+        if(cValue1 == null || cValue2 == null) return false;
+        if(cValue1.length()==0 || cValue2.length()==0) return false;
+        Color c1 = Color.web(cValue1);
+        Color c2 = Color.web(cValue2);
+        return c1.getGreen() == c2.getGreen() &&
+                c1.getBlue() == c2.getBlue() &&
+                c1.getRed() == c2.getRed();
     }
 
     /**
@@ -223,6 +286,12 @@ public class MainWindowController implements Initializable {
         }
 
         registerChange();
+    }
+
+    private void closeFile() {
+        if (programState == ProgramState.UNSAVED) {
+            if (cancelActionToSaveContent()) Platform.exit();
+        }
     }
 
     /**
@@ -287,7 +356,7 @@ public class MainWindowController implements Initializable {
             hyperlinkKey.setPrefWidth(120);
             Label hyperlinkValue = new Label(vertex.hasProperty("url") ? vertex.getProperty("url") : "(none)");
             hyperlinkValue.setPrefWidth(151);
-            TextField hyperlinkEdit = new TextField(vertex.hasProperty("url")  ? vertex.getProperty("url") : "");
+            TextField hyperlinkEdit = new TextField(vertex.hasProperty("url") ? vertex.getProperty("url") : "");
             hyperlinkEdit.setPrefWidth(151);
             hyperlinkEdit.setOnKeyPressed(event -> {
                         if (event.getCode() == KeyCode.ENTER) {
@@ -316,7 +385,7 @@ public class MainWindowController implements Initializable {
             edit.setOnAction(event -> {
                 holder.getChildren().removeAll(titleValue, hyperlinkValue);
                 titleEdit.setText(titleValue.getText());
-                hyperlinkEdit.setText(vertex.hasProperty("url")  ? vertex.getProperty("url") : "");
+                hyperlinkEdit.setText(vertex.hasProperty("url") ? vertex.getProperty("url") : "");
                 holder.getChildren().addAll(titleEdit, hyperlinkEdit);
                 buttons.getChildren().setAll(cancel, confirm);
                 titleEdit.requestFocus();

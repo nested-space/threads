@@ -145,7 +145,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param connection the id of the node to be added
      */
     public void addConnection(String connection) {
-        if(!this.connectedVertices.contains(connection)) this.connectedVertices.add(connection);
+        if (!this.connectedVertices.contains(connection)) this.connectedVertices.add(connection);
     }
 
     /**
@@ -195,12 +195,13 @@ public class VertexData implements Comparable<VertexData> {
 
     /**
      * If not already present, add a property to the vertex
-     * @param propertyName the name of the property
+     *
+     * @param propertyName  the name of the property
      * @param propertyValue the value of the property
      * @return whether the property was added
      */
-    public boolean addProperty(String propertyName, String propertyValue){
-        if(propertiesMap.containsKey(propertyName)){
+    public boolean addProperty(String propertyName, String propertyValue) {
+        if (propertiesMap.containsKey(propertyName)) {
             return false;
         } else {
             propertiesMap.put(propertyName, propertyValue);
@@ -210,31 +211,34 @@ public class VertexData implements Comparable<VertexData> {
 
     /**
      * Add a property to the vertex, overwriting any existing property of the same name
-     * @param propertyName the name of the property
+     *
+     * @param propertyName  the name of the property
      * @param propertyValue the value of the property
      */
-    public void overwriteProperty(String propertyName, String propertyValue){
+    public void overwriteProperty(String propertyName, String propertyValue) {
         propertiesMap.put(propertyName, propertyValue);
     }
 
     /**
      * Remove a property from the vertex
+     *
      * @param propertyName the name of the property
      */
-    public void removeProperty(String propertyName){
+    public void removeProperty(String propertyName) {
         propertiesMap.remove(propertyName);
     }
 
-    public String getProperty(String propertyName){
+    public String getProperty(String propertyName) {
         return propertiesMap.get(propertyName);
     }
 
     /**
      * Return whether the vertex has a property of the specified name
+     *
      * @param propertyName the property name
      * @return whether the vertex has a property of the specified name
      */
-    public boolean hasProperty(String propertyName){
-        return propertiesMap.containsKey(propertyName);
+    public boolean hasProperty(String propertyName) {
+        return propertiesMap.containsKey(propertyName) && propertiesMap.getOrDefault(propertyName, "").length() > 0;
     }
 }
