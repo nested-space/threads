@@ -1,1 +1,385 @@
-{"name":"Test","id":"Test","vertices":[{"connectedVertices":["87c7b88f-675f-4fea-9113-21fb66e80083"],"depth":0,"priority":288000,"name":"Example C","id":{"name":"","value":"6b276ac0-0bc1-4a85-8bd3-c8d2d08d6d45","valid":true},"propertiesMap":{"color":"#D1DBE3","url":""}},{"connectedVertices":["e5bf943f-1fac-4899-aaaa-32623635cea4"],"depth":1,"priority":384000,"name":"New Node","id":{"name":"","value":"6e163bc0-a187-4d3f-929f-f14103a4c8df","valid":true},"propertiesMap":{"color":"#f0ab00"}},{"connectedVertices":["6b276ac0-0bc1-4a85-8bd3-c8d2d08d6d45"],"depth":1,"priority":128000,"name":"New Node","id":{"name":"","value":"87c7b88f-675f-4fea-9113-21fb66e80083","valid":true},"propertiesMap":{"color":"#D1DBE3"}},{"connectedVertices":["5de6790a-5097-422a-b131-2ac35fe007ed","cb070d0c-e68d-4cda-a918-31c53e67bc44","38fdc2de-946e-4d28-99a6-0547b0561b78"],"depth":0,"priority":352000,"name":"Module","id":{"name":"","value":"6d91b322-c630-4f88-9473-10574f127976","valid":true},"propertiesMap":{}},{"connectedVertices":["342a8926-998e-46ad-9208-de56dd1b0b30"],"depth":1,"priority":96000,"name":"New Node","id":{"name":"","value":"04452280-de9c-4eda-8b71-b127d1b6cf8f","valid":true},"propertiesMap":{"color":"#50C878"}},{"connectedVertices":["342a8926-998e-46ad-9208-de56dd1b0b30","6c667dd1-b368-46e1-bd4b-676a2c7a7fca"],"depth":1,"priority":160000,"name":"New Node","id":{"name":"","value":"cef973ee-106f-4d1e-90ab-032a59284d79","valid":true},"propertiesMap":{"color":"#EA3C53"}},{"connectedVertices":["91da9e8d-6b1c-49ea-963a-d367b15af563"],"depth":1,"priority":192000,"name":"New Node","id":{"name":"","value":"58a4ef07-b21b-48a2-92d9-9fad69b82bc3","valid":true},"propertiesMap":{"color":"#830051"}},{"connectedVertices":["e5bf943f-1fac-4899-aaaa-32623635cea4"],"depth":1,"priority":352000,"name":"New Node","id":{"name":"","value":"bc858220-fa02-4a0f-ae73-460827e34ce9","valid":true},"propertiesMap":{"color":"#f0ab00"}},{"connectedVertices":["6d91b322-c630-4f88-9473-10574f127976"],"depth":1,"priority":512000,"name":"New Node","id":{"name":"","value":"38fdc2de-946e-4d28-99a6-0547b0561b78","valid":true},"propertiesMap":{}},{"connectedVertices":["91da9e8d-6b1c-49ea-963a-d367b15af563"],"depth":1,"priority":64000,"name":"New Node","id":{"name":"","value":"a2313056-ab01-45a6-a91c-ecf68e7cf098","valid":true},"propertiesMap":{}},{"connectedVertices":["bc858220-fa02-4a0f-ae73-460827e34ce9","6e163bc0-a187-4d3f-929f-f14103a4c8df","cc57ec4b-2fe7-4a65-91e0-a1e618ffc445"],"depth":0,"priority":320000,"name":"Module","id":{"name":"","value":"e5bf943f-1fac-4899-aaaa-32623635cea4","valid":true},"propertiesMap":{"color":"#f0ab00"}},{"connectedVertices":["91da9e8d-6b1c-49ea-963a-d367b15af563"],"depth":1,"priority":32000,"name":"New Node","id":{"name":"","value":"aac6047c-8574-4b09-9bb2-5ebc286eed2c","valid":true},"propertiesMap":{}},{"connectedVertices":["e5bf943f-1fac-4899-aaaa-32623635cea4"],"depth":1,"priority":416000,"name":"New Node","id":{"name":"","value":"cc57ec4b-2fe7-4a65-91e0-a1e618ffc445","valid":true},"propertiesMap":{"color":"#f0ab00"}},{"connectedVertices":["6d91b322-c630-4f88-9473-10574f127976"],"depth":1,"priority":448000,"name":"New Node","id":{"name":"","value":"5de6790a-5097-422a-b131-2ac35fe007ed","valid":true},"propertiesMap":{}},{"connectedVertices":["c26ef18f-312b-42eb-af99-3aeab965f88a","68fe25a2-256a-4d2c-9f8e-49ab0e0a37d9","811b833f-7fea-4b49-8cdd-be6ac0b81f74"],"depth":0,"priority":288000,"name":"Module","id":{"name":"","value":"5e459c5a-e92f-4487-a35b-fcb618a6625c","valid":true},"propertiesMap":{}},{"connectedVertices":["5e459c5a-e92f-4487-a35b-fcb618a6625c"],"depth":1,"priority":320000,"name":"New Node","id":{"name":"","value":"811b833f-7fea-4b49-8cdd-be6ac0b81f74","valid":true},"propertiesMap":{}},{"connectedVertices":["6d91b322-c630-4f88-9473-10574f127976"],"depth":1,"priority":480000,"name":"New Node","id":{"name":"","value":"cb070d0c-e68d-4cda-a918-31c53e67bc44","valid":true},"propertiesMap":{}},{"connectedVertices":["5e459c5a-e92f-4487-a35b-fcb618a6625c"],"depth":1,"priority":256000,"name":"New Node","id":{"name":"","value":"c26ef18f-312b-42eb-af99-3aeab965f88a","valid":true},"propertiesMap":{}},{"connectedVertices":["fefe3544-4ba4-4062-bada-cd3e8b17af2b"],"depth":2,"priority":64000,"name":"New Node","id":{"name":"","value":"89aa1f3e-c531-44f6-8652-d894a603251a","valid":true},"propertiesMap":{"color":"#50C878"}},{"connectedVertices":["aac6047c-8574-4b09-9bb2-5ebc286eed2c","a2313056-ab01-45a6-a91c-ecf68e7cf098","58a4ef07-b21b-48a2-92d9-9fad69b82bc3"],"depth":0,"priority":224000,"name":"Module","id":{"name":"","value":"91da9e8d-6b1c-49ea-963a-d367b15af563","valid":true},"propertiesMap":{"color":"#830051"}},{"connectedVertices":["5e459c5a-e92f-4487-a35b-fcb618a6625c"],"depth":1,"priority":288000,"name":"New Node","id":{"name":"","value":"68fe25a2-256a-4d2c-9f8e-49ab0e0a37d9","valid":true},"propertiesMap":{}},{"connectedVertices":["cef973ee-106f-4d1e-90ab-032a59284d79"],"depth":2,"priority":32000,"name":"New Node","id":{"name":"","value":"6c667dd1-b368-46e1-bd4b-676a2c7a7fca","valid":true},"propertiesMap":{"color":"#EA3C53"}},{"connectedVertices":["04452280-de9c-4eda-8b71-b127d1b6cf8f","cef973ee-106f-4d1e-90ab-032a59284d79","fefe3544-4ba4-4062-bada-cd3e8b17af2b"],"depth":0,"priority":256000,"name":"Module","id":{"name":"","value":"342a8926-998e-46ad-9208-de56dd1b0b30","valid":true},"propertiesMap":{"color":"#EA3C53"}},{"connectedVertices":["342a8926-998e-46ad-9208-de56dd1b0b30","89aa1f3e-c531-44f6-8652-d894a603251a"],"depth":1,"priority":224000,"name":"New Node","id":{"name":"","value":"fefe3544-4ba4-4062-bada-cd3e8b17af2b","valid":true},"propertiesMap":{"color":"#50C878"}}]}
+{
+  "name": "Test",
+  "id": "Test",
+  "vertices": [
+    {
+      "connectedVertices": [
+        "87c7b88f-675f-4fea-9113-21fb66e80083"
+      ],
+      "depth": 0,
+      "priority": 288000,
+      "name": "Example C",
+      "id": {
+        "name": "",
+        "value": "6b276ac0-0bc1-4a85-8bd3-c8d2d08d6d45",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#f0ab00",
+        "url": ""
+      }
+    },
+    {
+      "connectedVertices": [
+        "e5bf943f-1fac-4899-aaaa-32623635cea4"
+      ],
+      "depth": 1,
+      "priority": 384000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "6e163bc0-a187-4d3f-929f-f14103a4c8df",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#f0ab00"
+      }
+    },
+    {
+      "connectedVertices": [
+        "6b276ac0-0bc1-4a85-8bd3-c8d2d08d6d45"
+      ],
+      "depth": 1,
+      "priority": 128000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "87c7b88f-675f-4fea-9113-21fb66e80083",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#D1DBE3"
+      }
+    },
+    {
+      "connectedVertices": [
+        "5de6790a-5097-422a-b131-2ac35fe007ed",
+        "cb070d0c-e68d-4cda-a918-31c53e67bc44",
+        "38fdc2de-946e-4d28-99a6-0547b0561b78"
+      ],
+      "depth": 0,
+      "priority": 352000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "6d91b322-c630-4f88-9473-10574f127976",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "342a8926-998e-46ad-9208-de56dd1b0b30"
+      ],
+      "depth": 1,
+      "priority": 96000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "04452280-de9c-4eda-8b71-b127d1b6cf8f",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#50C878"
+      }
+    },
+    {
+      "connectedVertices": [
+        "342a8926-998e-46ad-9208-de56dd1b0b30",
+        "6c667dd1-b368-46e1-bd4b-676a2c7a7fca"
+      ],
+      "depth": 1,
+      "priority": 160000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "cef973ee-106f-4d1e-90ab-032a59284d79",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#EA3C53"
+      }
+    },
+    {
+      "connectedVertices": [
+        "91da9e8d-6b1c-49ea-963a-d367b15af563"
+      ],
+      "depth": 1,
+      "priority": 192000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "58a4ef07-b21b-48a2-92d9-9fad69b82bc3",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#830051"
+      }
+    },
+    {
+      "connectedVertices": [
+        "e5bf943f-1fac-4899-aaaa-32623635cea4"
+      ],
+      "depth": 1,
+      "priority": 352000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "bc858220-fa02-4a0f-ae73-460827e34ce9",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#f0ab00"
+      }
+    },
+    {
+      "connectedVertices": [
+        "6d91b322-c630-4f88-9473-10574f127976"
+      ],
+      "depth": 1,
+      "priority": 512000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "38fdc2de-946e-4d28-99a6-0547b0561b78",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "91da9e8d-6b1c-49ea-963a-d367b15af563"
+      ],
+      "depth": 1,
+      "priority": 64000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "a2313056-ab01-45a6-a91c-ecf68e7cf098",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "bc858220-fa02-4a0f-ae73-460827e34ce9",
+        "6e163bc0-a187-4d3f-929f-f14103a4c8df",
+        "cc57ec4b-2fe7-4a65-91e0-a1e618ffc445"
+      ],
+      "depth": 0,
+      "priority": 320000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "e5bf943f-1fac-4899-aaaa-32623635cea4",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#D1DBE3"
+      }
+    },
+    {
+      "connectedVertices": [
+        "91da9e8d-6b1c-49ea-963a-d367b15af563"
+      ],
+      "depth": 1,
+      "priority": 32000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "aac6047c-8574-4b09-9bb2-5ebc286eed2c",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "e5bf943f-1fac-4899-aaaa-32623635cea4"
+      ],
+      "depth": 1,
+      "priority": 416000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "cc57ec4b-2fe7-4a65-91e0-a1e618ffc445",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#f0ab00"
+      }
+    },
+    {
+      "connectedVertices": [
+        "6d91b322-c630-4f88-9473-10574f127976"
+      ],
+      "depth": 1,
+      "priority": 448000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "5de6790a-5097-422a-b131-2ac35fe007ed",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "c26ef18f-312b-42eb-af99-3aeab965f88a",
+        "68fe25a2-256a-4d2c-9f8e-49ab0e0a37d9",
+        "811b833f-7fea-4b49-8cdd-be6ac0b81f74"
+      ],
+      "depth": 0,
+      "priority": 288000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "5e459c5a-e92f-4487-a35b-fcb618a6625c",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#f0ab00"
+      }
+    },
+    {
+      "connectedVertices": [
+        "5e459c5a-e92f-4487-a35b-fcb618a6625c"
+      ],
+      "depth": 1,
+      "priority": 320000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "811b833f-7fea-4b49-8cdd-be6ac0b81f74",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "6d91b322-c630-4f88-9473-10574f127976"
+      ],
+      "depth": 1,
+      "priority": 480000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "cb070d0c-e68d-4cda-a918-31c53e67bc44",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "5e459c5a-e92f-4487-a35b-fcb618a6625c"
+      ],
+      "depth": 1,
+      "priority": 256000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "c26ef18f-312b-42eb-af99-3aeab965f88a",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "fefe3544-4ba4-4062-bada-cd3e8b17af2b"
+      ],
+      "depth": 2,
+      "priority": 64000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "89aa1f3e-c531-44f6-8652-d894a603251a",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#50C878"
+      }
+    },
+    {
+      "connectedVertices": [
+        "aac6047c-8574-4b09-9bb2-5ebc286eed2c",
+        "a2313056-ab01-45a6-a91c-ecf68e7cf098",
+        "58a4ef07-b21b-48a2-92d9-9fad69b82bc3"
+      ],
+      "depth": 0,
+      "priority": 224000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "91da9e8d-6b1c-49ea-963a-d367b15af563",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#003865"
+      }
+    },
+    {
+      "connectedVertices": [
+        "5e459c5a-e92f-4487-a35b-fcb618a6625c"
+      ],
+      "depth": 1,
+      "priority": 288000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "68fe25a2-256a-4d2c-9f8e-49ab0e0a37d9",
+        "valid": true
+      },
+      "propertiesMap": {}
+    },
+    {
+      "connectedVertices": [
+        "cef973ee-106f-4d1e-90ab-032a59284d79"
+      ],
+      "depth": 2,
+      "priority": 32000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "6c667dd1-b368-46e1-bd4b-676a2c7a7fca",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#EA3C53"
+      }
+    },
+    {
+      "connectedVertices": [
+        "04452280-de9c-4eda-8b71-b127d1b6cf8f",
+        "cef973ee-106f-4d1e-90ab-032a59284d79",
+        "fefe3544-4ba4-4062-bada-cd3e8b17af2b"
+      ],
+      "depth": 0,
+      "priority": 256000,
+      "name": "Module",
+      "id": {
+        "name": "",
+        "value": "342a8926-998e-46ad-9208-de56dd1b0b30",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#003865"
+      }
+    },
+    {
+      "connectedVertices": [
+        "342a8926-998e-46ad-9208-de56dd1b0b30",
+        "89aa1f3e-c531-44f6-8652-d894a603251a"
+      ],
+      "depth": 1,
+      "priority": 224000,
+      "name": "New Node",
+      "id": {
+        "name": "",
+        "value": "fefe3544-4ba4-4062-bada-cd3e8b17af2b",
+        "valid": true
+      },
+      "propertiesMap": {
+        "color": "#50C878"
+      }
+    }
+  ]
+}

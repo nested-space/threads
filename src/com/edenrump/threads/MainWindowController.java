@@ -153,13 +153,21 @@ public class MainWindowController implements Initializable {
         Menu file = new Menu("_File");
         MenuItem newFile = new MenuItem("_New");
         newFile.setOnAction(actionEvent -> createNew());
-        MenuItem openFile = new MenuItem("_Open");
+        MenuItem openFile = new MenuItem("_Load");
         openFile.setOnAction(actionEvent -> loadFile());
         MenuItem saveFile = new MenuItem("_Save");
         saveFile.setOnAction(event -> saveFile());
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> closeFile());
-        file.getItems().setAll(newFile, openFile, saveFile, close);
+
+        Menu loadFromTemplate = new Menu("Load from _Template");
+        MenuItem example = new MenuItem("Example File");
+        example.setOnAction(e -> loadFile(new File("res/examples/Example.json")));
+        MenuItem CTDtemplate = new MenuItem("Clinical Trials Document");
+        CTDtemplate.setOnAction(e -> loadFile(new File("res/examples/CTD_template.json")));
+        loadFromTemplate.getItems().addAll(example, CTDtemplate);
+
+        file.getItems().setAll(newFile, openFile, loadFromTemplate, saveFile, close);
 
         Menu view = new Menu("_View");
 
@@ -235,20 +243,21 @@ public class MainWindowController implements Initializable {
     private void saveFile() {
         FileChooser fc = new FileChooser();
         fc.setTitle("Save To File");
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file", "*.json"));
         File file = fc.showSaveDialog(stage.getScene().getWindow());
         if (file == null) {
             return;
         }
 
         if (!file.getName().contains(".")) {
-            file = new File(file.getAbsolutePath() + ".wool");
+            file = new File(file.getAbsolutePath() + ".json");
         }
 
         boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getAllVertices()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
+            depthGraphDisplay.setHasUnsavedContent(false);
         } else {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Save Failure");
@@ -266,12 +275,16 @@ public class MainWindowController implements Initializable {
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Resource File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file (.wool)", "*.wool"));
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Threads file", "*.json"));
         File file = fileChooser.showOpenDialog(stage.getScene().getWindow());
         if (file == null) return;
 
-        ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
+        loadFile(file);
+        registerChange();
+    }
 
+    private void loadFile(File file){
+        ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
         if (loaded != null) {
             clearAll();
             vertexInfoInMemory = loaded.getVertices();
@@ -284,8 +297,6 @@ public class MainWindowController implements Initializable {
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
             setInfoPaneComments(new ArrayList<>());
         }
-
-        registerChange();
     }
 
     private void closeFile() {
@@ -481,7 +492,6 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        File example = new File("res/examples/Example.json");
         return JSONLoader.loadOneFromJSON(new File("res/examples/Example.json"));
     }
 

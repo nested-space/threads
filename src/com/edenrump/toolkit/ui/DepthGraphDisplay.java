@@ -410,10 +410,6 @@ public class DepthGraphDisplay {
         status.shouldBeVisible = status.shouldBeVisible.stream()
                 .filter(allPredicates).collect(Collectors.toSet());
 
-//        for (Predicate<? super DataAndNodes> filter : visibleNodesFilters) {
-//            status.shouldBeVisible = status.shouldBeVisible.stream().filter(filter).collect(Collectors.toSet());
-//        }
-
         //nodes that should be visible but aren't
         status.appear = new HashSet<>(status.shouldBeVisible);
         status.appear.removeAll(currentlyVisible);
