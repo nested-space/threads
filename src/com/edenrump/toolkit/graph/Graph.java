@@ -116,17 +116,21 @@ public class Graph {
         return path;
     }
 
-    public static List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction, Map<String, DataAndNodes> nodeMap) {
+    public static List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction, List<VertexData> vertices) {
+        Map<String, VertexData> nodeMap = new HashMap<>();
+        for(VertexData vertex : vertices){
+            nodeMap.put(vertex.getId(), vertex);
+        }
         if (!nodeMap.containsKey(vertexID)) return new ArrayList<>();
 
-        VertexData currentVertex = nodeMap.get(vertexID).getVertexData();
+        VertexData currentVertex = nodeMap.get(vertexID);
         List<VertexData> unvisitedVertices = currentVertex.getConnectedVertices().stream()
-                .map(id -> nodeMap.get(id).getVertexData())
+                .map(nodeMap::get)
                 .filter(data -> {
                     if (direction == DepthDirection.INCREASING_DEPTH) {
-                        return data.getDepth() > nodeMap.get(vertexID).getVertexData().getDepth();
+                        return data.getDepth() > nodeMap.get(vertexID).getDepth();
                     } else {
-                        return data.getDepth() < nodeMap.get(vertexID).getVertexData().getDepth();
+                        return data.getDepth() < nodeMap.get(vertexID).getDepth();
                     }
                 })
                 .collect(Collectors.toList());
@@ -137,13 +141,13 @@ public class Graph {
             visitedVertices.add(currentVertex);
 
             unvisitedVertices.addAll(currentVertex.getConnectedVertices().stream()
-                    .map(id -> nodeMap.get(id).getVertexData())
+                    .map(nodeMap::get)
                     .filter(data -> !visitedVertices.contains(data))
                     .filter(data -> {
                         if (direction == DepthDirection.INCREASING_DEPTH) {
-                            return data.getDepth() > nodeMap.get(vertexID).getVertexData().getDepth();
+                            return data.getDepth() > nodeMap.get(vertexID).getDepth();
                         } else {
-                            return data.getDepth() < nodeMap.get(vertexID).getVertexData().getDepth();
+                            return data.getDepth() < nodeMap.get(vertexID).getDepth();
                         }
                     }).collect(Collectors.toList()));
         }

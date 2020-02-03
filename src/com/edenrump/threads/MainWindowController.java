@@ -9,6 +9,7 @@
 
 package com.edenrump.threads;
 
+import com.edenrump.threads.output.PDFExporter;
 import com.edenrump.threads.views.TreeDepthGraphDisplay;
 import com.edenrump.toolkit.config.Defaults;
 import com.edenrump.toolkit.graph.DataAndNodes;
@@ -18,28 +19,34 @@ import com.edenrump.toolkit.loaders.JSONLoader;
 import com.edenrump.toolkit.models.ThreadsData;
 import com.edenrump.toolkit.models.VertexData;
 import com.edenrump.toolkit.ui.DepthGraphDisplay;
-import com.sun.xml.internal.ws.policy.EffectiveAlternativeSelector;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import javax.imageio.ImageIO;
+import java.awt.image.RenderedImage;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -160,6 +167,13 @@ public class MainWindowController implements Initializable {
         MenuItem close = new MenuItem("_Close");
         close.setOnAction(event -> closeFile());
 
+        Menu export = new Menu("_Export");
+        MenuItem exportToPDF = new MenuItem("To PDF");
+        exportToPDF.setOnAction(e -> exportToPDF());
+        MenuItem exportToPNG = new MenuItem("to PNG");
+        exportToPNG.setOnAction(e -> exportPNG());
+        export.getItems().addAll(exportToPDF, exportToPNG);
+
         Menu loadFromTemplate = new Menu("Load from _Template");
         MenuItem example = new MenuItem("Example File");
         example.setOnAction(e -> loadFile(new File("res/examples/Example.json")));
@@ -167,7 +181,7 @@ public class MainWindowController implements Initializable {
         CTDtemplate.setOnAction(e -> loadFile(new File("res/examples/CTD_template.json")));
         loadFromTemplate.getItems().addAll(example, CTDtemplate);
 
-        file.getItems().setAll(newFile, openFile, loadFromTemplate, saveFile, close);
+        file.getItems().setAll(newFile, openFile, loadFromTemplate, export, saveFile, close);
 
         Menu view = new Menu("_View");
 
@@ -195,7 +209,7 @@ public class MainWindowController implements Initializable {
     }
 
     private void clearCurrentVisibilityFilters() {
-        for (Predicate<? super DataAndNodes> filter: visibilityFilters){
+        for (Predicate<? super DataAndNodes> filter : visibilityFilters) {
             depthGraphDisplay.removeVisibilityFilter(filter);
         }
         visibilityFilters.clear();
@@ -208,8 +222,7 @@ public class MainWindowController implements Initializable {
 
         Predicate<DataAndNodes> filter = data -> {
             if (!data.getVertexData().hasProperty("color")) return false;
-
-            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllNodesIDMap());
+            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllVertices());
             for (VertexData vertex : downstream) {
                 if (!vertex.hasProperty("color")) continue;
                 if (sameColor(vertex.getProperty("color"), cValue)) return true;
@@ -228,14 +241,57 @@ public class MainWindowController implements Initializable {
     }
 
     private boolean sameColor(String cValue1, String cValue2) {
-        if(cValue1 == null || cValue2 == null) return false;
-        if(cValue1.length()==0 || cValue2.length()==0) return false;
+        if (cValue1 == null || cValue2 == null) return false;
+        if (cValue1.length() == 0 || cValue2.length() == 0) return false;
         Color c1 = Color.web(cValue1);
         Color c2 = Color.web(cValue2);
         return c1.getGreen() == c2.getGreen() &&
                 c1.getBlue() == c2.getBlue() &&
                 c1.getRed() == c2.getRed();
     }
+
+    private void exportPNG() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export image");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Image", "*.png"));
+        File file = fileChooser.showSaveDialog(stage.getScene().getWindow());
+        if (file == null) return;
+
+        WritableImage snapshot = depthGraphDisplay.getSnapShot();
+        try {
+            RenderedImage renderedImage = SwingFXUtils.fromFXImage(snapshot, null);
+            //Write the snapshot to the chosen file
+            ImageIO.write(renderedImage, "png", file);
+        } catch (IOException e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Export Failure");
+            alert.setHeaderText("Failed to export file");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+            e.printStackTrace();
+        }
+    }
+
+
+    private void exportToPDF() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export to PDF");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+        File file = fileChooser.showSaveDialog(stage.getScene().getWindow());
+        if (file == null) return;
+
+        try {
+            PDFExporter.exportCTDGraphToPDF(file, new ThreadsData(fileName, fileID, depthGraphDisplay.getAllVertices()));
+        } catch (IOException e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Export Failure");
+            alert.setHeaderText("Failed to export file");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+            e.printStackTrace();
+        }
+    }
+
 
     /**
      * Prompt the user to select a file and save the currently loaded process display to a flat file on the users hard drive
@@ -283,7 +339,7 @@ public class MainWindowController implements Initializable {
         registerChange();
     }
 
-    private void loadFile(File file){
+    private void loadFile(File file) {
         ThreadsData loaded = JSONLoader.loadOneFromJSON(file);
         if (loaded != null) {
             clearAll();
@@ -492,7 +548,14 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        return JSONLoader.loadOneFromJSON(new File("res/examples/Example.json"));
+        ThreadsData data = JSONLoader.loadOneFromJSON(new File("res/examples/CTD_template.json"));
+
+        try {
+            PDFExporter.exportCTDGraphToPDF(new File("C:/Temp/" + data.getName() + "-A.pdf"), data);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return data;
     }
 
     /**

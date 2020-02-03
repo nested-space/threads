@@ -11,6 +11,7 @@ package com.edenrump.toolkit.ui;
 
 import com.edenrump.toolkit.graph.DataAndNodes;
 import com.edenrump.toolkit.graph.Graph;
+import com.edenrump.toolkit.models.ThreadsData;
 import com.edenrump.toolkit.models.VertexData;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -27,9 +28,11 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.VerticalDirection;
 import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.ContextMenuEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
@@ -942,6 +945,10 @@ public class DepthGraphDisplay {
      */
     private Double ltsY(Node node) {
         return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
+    }
+
+    public WritableImage getSnapShot() {
+        return displayOverlay.snapshot(new SnapshotParameters(), null);
     }
 
     /**

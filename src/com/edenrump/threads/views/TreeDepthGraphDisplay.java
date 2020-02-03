@@ -87,7 +87,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             selectedRootNode = getAllNodesIDMap().get(vertexId);
 
             removeVisibilityFilter(selectorFilter);
-            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllNodesIDMap())
+            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllVertices())
                     .stream()
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             addVisibilityFilter(selectorFilter);
