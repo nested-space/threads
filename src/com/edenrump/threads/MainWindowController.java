@@ -548,14 +548,7 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        ThreadsData data = JSONLoader.loadOneFromJSON(new File("res/examples/CTD_template.json"));
-
-        try {
-            PDFExporter.exportCTDGraphToPDF(new File("C:/Temp/" + data.getName() + "-A.pdf"), data);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return data;
+        return JSONLoader.loadOneFromJSON(new File("res/examples/CTD_template.json"));
     }
 
     /**
