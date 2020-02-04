@@ -656,6 +656,8 @@ public class DepthGraphDisplay {
             return;
         }
 
+        boolean preventAdditionalActions = false;
+
         VertexData vertexClicked = allNodesIDMap.get(vertexId).getVertexData();
         if (event.isShiftDown() && lastSelected != null) {
             List<VertexData> vertices = Graph.findShortestPath(lastSelected, vertexClicked,
@@ -663,6 +665,7 @@ public class DepthGraphDisplay {
                             .map(DataAndNodes::getVertexData)
                             .collect(Collectors.toList()));
             selectedVertices.setAll(vertices.stream().map(VertexData::getId).collect(Collectors.toList()));
+            preventAdditionalActions = true;
         } else if (event.isControlDown()) {
             if (!selectedVertices.contains(vertexClicked.getId())) {
                 selectedVertices.add(vertexClicked.getId());
@@ -670,12 +673,15 @@ public class DepthGraphDisplay {
             } else {
                 selectedVertices.remove(vertexClicked.getId());
             }
+            preventAdditionalActions = true;
         } else {
             selectedVertices.setAll(vertexClicked.getId());
             lastSelected = vertexClicked;
         }
 
-        addMouseActions(vertexId, event);
+        if(!preventAdditionalActions){
+            addMouseActions(vertexId, event);
+        }
 
         if (!preventDefaultHighlight) {
             highlightSelectedNodes();

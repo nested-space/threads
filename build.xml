@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!--
+* ******************************************************************************
+*  * Copyright (c) 05/12/2019, 09:12.2019. Edward Eden-Rump is licensed under a Creative Commons Attribution 4.0 International License.
+*  *
+*  * Based on a work at https://github.com/nested-space/
+*  To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/.
+*  *****************************************************************************
+-->
+
+<project default="dist" name="Threads - Ant Build File">
+    <buildnumber/>
+
+    <property name="sourceDir" location="src"/>
+    <property name="resourcesDir" location="res"/>
+    <property name="build" location="build"/>
+    <property name="lib" location="lib"/>
+    <property name="compile" location="out"/>
+    <property name="dist" location="dist"/>
+    <property name="version" value="1.0"/>
+    <property name="applicationName" value="Threads"/>
+
+    <path id="build.classpath">
+                <fileset dir="C:\Code\Java\threads\lib">
+                    <include name="gson-2.2.2.jar"/>
+                    <include name="io-7.1.9.jar"/>
+                    <include name="kernel-7.1.9.jar"/>
+                    <include name="layout-7.1.9.jar"/>
+                    <include name="log4j-1.2.16.jar"/>
+                    <include name="slf4j.api-1.6.1.jar"/>
+                    <include name="slf4j-log4j12-1.6.1.jar"/>
+                </fileset>
+    </path>
+
+    <target name="compile" depends="clean, init">
+        <javac deprecation="true" target="8" source="8" includeantruntime="false" srcdir="${sourceDir}"
+               destdir="${build}">
+            <src path="src"/>
+            <classpath refid="build.classpath"/>
+        </javac>
+    </target>
+
+    <target name="dist" depends="compile" description="generate the distribution">
+        <jar destfile="${dist}/lib/${applicationName}-${version}.${build.number}.jar" basedir="${build}">
+            <zipgroupfileset dir="${lib}"
+                             includes="gson-2.2.2.jar,io-7.1.9.jar,kernel-7.1.9.jar,layout-7.1.9.jar,log4j-1.2.16.jar,slf4j.api-1.6.1.jar,slf4j-log4j12-1.6.1.jar"/>
+            <manifest>
+                <attribute name="Main-Class" value="com.edenrump.threads.Threads"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="clean" description="clean up">
+        <!-- Delete the ${build} and ${dist} directory trees -->
+        <delete dir="${compile}"/>
+        <delete dir="${build}"/>
+        <delete dir="${dist}"/>
+    </target>
+
+    <target name="init">
+        <!-- Create the time stamp -->
+        <tstamp>
+            <format property="touch.time" pattern="MM/dd/yyyy HH:mm aa"/>
+        </tstamp>
+        <!-- Create the build directory structure used by compile -->
+        <mkdir dir="${build}"/>
+        <mkdir dir="${dist}"/>
+
+        <copy todir="${build}">
+            <fileset dir="${resourcesDir}"/>
+        </copy>
+
+        <!--
+        <copy todir="${dist}/lib">
+            <file file="README.url"/>
+        </copy>
+        -->
+
+        <echo file="${build}/properties/build.properties" append="false">version=${version}.${build.number}
+            build.time=${touch.time}
+        </echo>
+    </target>
+
+</project>

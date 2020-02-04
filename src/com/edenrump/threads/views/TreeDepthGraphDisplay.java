@@ -97,8 +97,6 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
             requestDisplayUpdate();
             event.consume();
-        } else {
-            selectorFilter = entry -> true;
         }
     }
 

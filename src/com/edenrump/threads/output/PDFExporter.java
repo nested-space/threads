@@ -70,7 +70,8 @@ public class PDFExporter {
         doc.add(sectionHeader);
 
         //add a table from internal documents -> raw data documents -> raw data document link
-        Table table = new Table(UnitValue.createPercentArray(2)).useAllAvailableWidth();
+        float[] array = {3, 7};
+        Table table = new Table(UnitValue.createPercentArray(array)).useAllAvailableWidth();
 
         int internalDocDepth = 1;
         int rootDataDepth = 2;
@@ -88,7 +89,7 @@ public class PDFExporter {
                     }
 
                     //TODO: add option to include link with internal doc cell
-                    Cell internalDocCell = linkContentCell(internalDoc, "", leaves.size(), 1);
+                    Cell internalDocCell = linkContentCell(internalDoc, "", leaves.size(), leaves.size() == 0 ? 2 : 1);
 
                     table.addCell(internalDocCell);
                     for (VertexData rawDataVertex : leaves) {
@@ -126,12 +127,17 @@ public class PDFExporter {
     }
 
     private static Paragraph getAnchorTag(String startText, String linkText, String url, String endText) {
-        Paragraph paragraph = new Paragraph().setFontColor(ColorConstants.BLUE);
-        paragraph.add(startText + " ");
-        Link chunk = new Link(linkText,
-                PdfAction.createURI(url));
-        paragraph.add(chunk);
-        paragraph.add(" " + endText);
-        return paragraph;
+
+        if (linkText.startsWith("http://") || linkText.startsWith("www.")) {
+            Paragraph paragraph = new Paragraph().setFontColor(ColorConstants.BLUE);
+            paragraph.add(startText + " ");
+            Link chunk = new Link(linkText,
+                    PdfAction.createURI(url));
+            paragraph.add(chunk);
+            paragraph.add(" " + endText);
+            return paragraph;
+        } else {
+            return new Paragraph(startText + linkText + endText);
+        }
     }
 }

@@ -27,11 +27,13 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.scene.SnapshotParameters;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -45,13 +47,9 @@ import javafx.stage.Stage;
 import javax.imageio.ImageIO;
 import java.awt.image.RenderedImage;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.ResourceBundle;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -127,9 +125,14 @@ public class MainWindowController implements Initializable {
                     depthGraphDisplay.deleteVertex(selectedVertices.get(0));
                 } else if (selectedVertices.size() > 1) {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+                    Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                    stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+                    alert.getDialogPane().getStylesheets().add("/css/Global.css");
+
                     alert.setTitle("Multiple vertex deletion");
                     alert.setHeaderText("Multiple vertices are selected");
                     alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
+
                     alert.showAndWait();
                     new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.deleteVertex(id));
                 }
@@ -160,7 +163,7 @@ public class MainWindowController implements Initializable {
         Menu file = new Menu("_File");
         MenuItem newFile = new MenuItem("_New");
         newFile.setOnAction(actionEvent -> createNew());
-        MenuItem openFile = new MenuItem("_Load");
+        MenuItem openFile = new MenuItem("_Open");
         openFile.setOnAction(actionEvent -> loadFile());
         MenuItem saveFile = new MenuItem("_Save");
         saveFile.setOnAction(event -> saveFile());
@@ -180,6 +183,26 @@ public class MainWindowController implements Initializable {
         MenuItem CTDtemplate = new MenuItem("Clinical Trials Document");
         CTDtemplate.setOnAction(e -> loadFile(new File("res/examples/CTD_template.json")));
         loadFromTemplate.getItems().addAll(example, CTDtemplate);
+
+        Menu help = new Menu("Help");
+        MenuItem about = new MenuItem("About");
+        about.setOnAction((launchAbout) -> {
+            FXMLLoader fxmlLoader;
+            Parent root;
+            fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/About.fxml"));
+            try {
+                root = fxmlLoader.load();
+                Stage stage = new Stage();
+                stage.setTitle("About");
+                stage.initOwner(borderBase.getScene().getWindow());
+                stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+                stage.setScene(new Scene(root));
+                stage.showAndWait();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        help.getItems().add(about);
 
         file.getItems().setAll(newFile, openFile, loadFromTemplate, export, saveFile, close);
 
@@ -204,7 +227,7 @@ public class MainWindowController implements Initializable {
 
         view.getItems().addAll(clearFilters, filter);
 
-        menu.getMenus().addAll(file, view);
+        menu.getMenus().addAll(file, view, help);
         borderPane.setTop(menu);
     }
 
@@ -264,14 +287,18 @@ public class MainWindowController implements Initializable {
             ImageIO.write(renderedImage, "png", file);
         } catch (IOException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+            alert.getDialogPane().getStylesheets().add("/css/Global.css");
+
             alert.setTitle("Export Failure");
             alert.setHeaderText("Failed to export file");
             alert.setContentText(e.getMessage());
+
             alert.showAndWait();
             e.printStackTrace();
         }
     }
-
 
     private void exportToPDF() {
         FileChooser fileChooser = new FileChooser();
@@ -282,16 +309,30 @@ public class MainWindowController implements Initializable {
 
         try {
             PDFExporter.exportCTDGraphToPDF(file, new ThreadsData(fileName, fileID, depthGraphDisplay.getAllVertices()));
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+            alert.getDialogPane().getStylesheets().add("/css/Global.css");
+
+            alert.setTitle("Export Successful");
+            alert.setHeaderText(null);
+            alert.setContentText("Data successfully exported to: \n" + file.getAbsolutePath());
+
+            alert.showAndWait();
         } catch (IOException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+            alert.getDialogPane().getStylesheets().add("/css/Global.css");
+
             alert.setTitle("Export Failure");
             alert.setHeaderText("Failed to export file");
             alert.setContentText(e.getMessage());
+
             alert.showAndWait();
             e.printStackTrace();
         }
     }
-
 
     /**
      * Prompt the user to select a file and save the currently loaded process display to a flat file on the users hard drive
@@ -316,9 +357,14 @@ public class MainWindowController implements Initializable {
             depthGraphDisplay.setHasUnsavedContent(false);
         } else {
             Alert alert = new Alert(Alert.AlertType.ERROR);
+            Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+            alert.getDialogPane().getStylesheets().add("/css/Global.css");
+
             alert.setTitle("Save Failure");
             alert.setHeaderText("Failed to save file");
             alert.setContentText("File name valid but a problem occurred saving the data to JSON format");
+
             alert.showAndWait();
         }
     }
@@ -327,7 +373,7 @@ public class MainWindowController implements Initializable {
      * Method attempts to load the file, if successful displays the information, if unsuccessful, prompts user
      */
     private void loadFile() {
-        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
+        if (programState == ProgramState.UNSAVED && !proceeedWithActionAndDiscardUnsavedContent()) return;
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open Resource File");
@@ -357,7 +403,7 @@ public class MainWindowController implements Initializable {
 
     private void closeFile() {
         if (programState == ProgramState.UNSAVED) {
-            if (cancelActionToSaveContent()) Platform.exit();
+            if (proceeedWithActionAndDiscardUnsavedContent()) Platform.exit();
         }
     }
 
@@ -509,14 +555,18 @@ public class MainWindowController implements Initializable {
      *
      * @return the users decision
      */
-    private boolean cancelActionToSaveContent() {
+    private boolean proceeedWithActionAndDiscardUnsavedContent() {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.getDialogPane().getStylesheets().add("/css/Global.css");
+        Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+        stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
+
         alert.setTitle("Discard Unsaved Content?");
         alert.setHeaderText("Proceeding will discard unsaved content");
         alert.setContentText("Go ahead and discard?");
 
         Optional<ButtonType> result = alert.showAndWait();
-        return !result.filter(buttonType -> buttonType == ButtonType.OK).isPresent();
+        return result.filter(buttonType -> buttonType == ButtonType.OK).isPresent();
     }
 
     /**
@@ -528,7 +578,7 @@ public class MainWindowController implements Initializable {
      * Create a new thread map and display the start node
      */
     private void createNew() {
-        if (programState == ProgramState.UNSAVED && cancelActionToSaveContent()) return;
+        if (programState == ProgramState.UNSAVED && proceeedWithActionAndDiscardUnsavedContent()) return;
         clearAll();
         ThreadsData startingState = initialState();
         vertexInfoInMemory = startingState.getVertices();
@@ -548,7 +598,7 @@ public class MainWindowController implements Initializable {
      * @return the seed display
      */
     private ThreadsData initialState() {
-        return JSONLoader.loadOneFromJSON(new File("res/examples/CTD_template.json"));
+        return new ThreadsData("New File", UUID.randomUUID().toString(), new ArrayList<>());
     }
 
     /**
@@ -571,9 +621,11 @@ public class MainWindowController implements Initializable {
         this.stage = stage;
         stage.setOnCloseRequest((e) -> {
             if (programState == ProgramState.UNSAVED) {
-                if (cancelActionToSaveContent()) Platform.exit();
-            } else {
-                Platform.exit();
+                if (proceeedWithActionAndDiscardUnsavedContent()) {
+                    Platform.exit();
+                } else {
+                    e.consume();
+                }
             }
         });
     }
