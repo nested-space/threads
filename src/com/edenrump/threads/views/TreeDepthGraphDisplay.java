@@ -87,7 +87,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             selectedRootNode = getAllNodesIDMap().get(vertexId);
 
             removeVisibilityFilter(selectorFilter);
-            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllVertices())
+            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllVertexData())
                     .stream()
                     .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
             addVisibilityFilter(selectorFilter);
@@ -95,7 +95,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             clearSelectedVertices();
             addSelectedVertex(vertexId);
 
-            requestDisplayUpdate();
+            updateDisplay();
             event.consume();
         }
     }
@@ -152,11 +152,11 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
         Menu delMenu = new Menu("Delete");
         MenuItem delete = new MenuItem("Delete last selected");
-        delete.setOnAction(event -> deleteVertex(id));
+        delete.setOnAction(event -> deleteVertexAndUpdateDisplay(id));
         MenuItem deleteAll = new MenuItem("Delete all");
         delete.setOnAction(event -> {
-            for (String vertex : getSelectedVerticesObservableList()) {
-                deleteVertex(vertex);
+            for (String vertex : getSelectedVertices()) {
+                deleteVertexAndUpdateDisplay(vertex);
             }
         });
         delMenu.getItems().addAll(delete, deleteAll);
@@ -193,11 +193,11 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     }
 
     private void changeSelectedItemColors(String color) {
-        ObservableList<String> vertices = getSelectedVerticesObservableList();
+        ObservableList<String> vertices = getSelectedVertices();
         for (String id : vertices) {
             VertexData v = getAllNodesIDMap().get(id).getVertexData();
             v.overwriteProperty("color", color);
-            updateVertex(id, v);
+            updateVertexAndRefreshDisplay(id, v);
         }
 
     }
@@ -214,7 +214,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         MenuItem addMoreDepth = new MenuItem("Add Node Right ->");
         addMoreDepth.setOnAction(event -> {
             int depth = getAllNodesIDMap().get(id).getVertexData().getDepth() + 1;
-            createVertex(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
+            addVertexToDisplay(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
                     depth,
                     calculatePriority(depth, VerticalDirection.DOWN)));
         });

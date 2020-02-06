@@ -111,7 +111,7 @@ public class MainWindowController implements Initializable {
         });
         createNew();
 
-        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVerticesObservableList();
+        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVertices();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             c.next();
@@ -122,7 +122,7 @@ public class MainWindowController implements Initializable {
         Platform.runLater(() -> stage.getScene().setOnKeyPressed(key -> {
             if (key.getCode() == KeyCode.DELETE) {
                 if (selectedVertices.size() == 1) {
-                    depthGraphDisplay.deleteVertex(selectedVertices.get(0));
+                    depthGraphDisplay.deleteVertexAndUpdateDisplay(selectedVertices.get(0));
                 } else if (selectedVertices.size() > 1) {
                     Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
                     Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
@@ -134,7 +134,7 @@ public class MainWindowController implements Initializable {
                     alert.setContentText("Proceed to delete " + selectedVertices.size() + " vertices?");
 
                     alert.showAndWait();
-                    new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.deleteVertex(id));
+                    new ArrayList<>(selectedVertices).forEach(id -> depthGraphDisplay.deleteVertexAndUpdateDisplay(id));
                 }
             } else if (key.getCode() == KeyCode.ESCAPE) {
                 depthGraphDisplay.deselectAll();
@@ -142,7 +142,7 @@ public class MainWindowController implements Initializable {
                 depthGraphDisplay.selectAll();
             } else if (key.getCode() == KeyCode.ENTER && key.isControlDown()) {
                 priority.set(priority.get() + 32000);
-                depthGraphDisplay.createVertex(new VertexData("Module", 0, priority.get()));
+                depthGraphDisplay.addVertexToDisplay(new VertexData("Module", 0, priority.get()));
             }
         }));
     }
@@ -211,7 +211,7 @@ public class MainWindowController implements Initializable {
         MenuItem clearFilters = new MenuItem("Clear filters");
         clearFilters.setOnAction(e -> {
             clearCurrentVisibilityFilters();
-            depthGraphDisplay.requestDisplayUpdate();
+            depthGraphDisplay.updateDisplay();
         });
 
         Menu filter = new Menu("_Filter");
@@ -245,7 +245,7 @@ public class MainWindowController implements Initializable {
 
         Predicate<DataAndNodes> filter = data -> {
             if (!data.getVertexData().hasProperty("color")) return false;
-            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllVertices());
+            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllVertexData());
             for (VertexData vertex : downstream) {
                 if (!vertex.hasProperty("color")) continue;
                 if (sameColor(vertex.getProperty("color"), cValue)) return true;
@@ -258,7 +258,7 @@ public class MainWindowController implements Initializable {
             clearCurrentVisibilityFilters();
             visibilityFilters.add(filter);
             depthGraphDisplay.addVisibilityFilter(filter);
-            depthGraphDisplay.requestDisplayUpdate();
+            depthGraphDisplay.updateDisplay();
         });
         return m;
     }
@@ -308,7 +308,7 @@ public class MainWindowController implements Initializable {
         if (file == null) return;
 
         try {
-            PDFExporter.exportCTDGraphToPDF(file, new ThreadsData(fileName, fileID, depthGraphDisplay.getAllVertices()));
+            PDFExporter.exportCTDGraphToPDF(file, new ThreadsData(fileName, fileID, depthGraphDisplay.getAllVertexData()));
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
             stage.getIcons().add(new Image(getClass().getResourceAsStream("/img/wool.png")));
@@ -350,7 +350,7 @@ public class MainWindowController implements Initializable {
             file = new File(file.getAbsolutePath() + ".json");
         }
 
-        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getAllVertices()), file);
+        boolean fate = JSONLoader.saveToJSON(new ThreadsData("Test", "Test", depthGraphDisplay.getAllVertexData()), file);
 
         if (fate) {
             stage.setTitle(Defaults.createTitle(file.getName()));
@@ -393,7 +393,7 @@ public class MainWindowController implements Initializable {
             fileName = loaded.getName();
             fileID = loaded.getId();
 
-            depthGraphDisplay.spawnNewDisplay(vertexInfoInMemory);
+            depthGraphDisplay.createNewDisplayFromVertexData(vertexInfoInMemory);
             depthGraphDisplay.show();
 
             setInfoPaneTitle(vertexInfoInMemory.size(), 0);
@@ -537,7 +537,7 @@ public class MainWindowController implements Initializable {
         titleValue.setText(titleEdit.getText());
         hyperlinkValue.setText(hyperlinkEdit.getText() == null ? "(none)" : vertex.getProperty("url"));
 
-        depthGraphDisplay.updateVertex(vertex.getId(), vertex);
+        depthGraphDisplay.updateVertexAndRefreshDisplay(vertex.getId(), vertex);
 
     }
 
@@ -585,7 +585,7 @@ public class MainWindowController implements Initializable {
         fileName = startingState.getName();
         fileID = startingState.getId();
 
-        depthGraphDisplay.spawnNewDisplay(vertexInfoInMemory);
+        depthGraphDisplay.createNewDisplayFromVertexData(vertexInfoInMemory);
         depthGraphDisplay.show();
 
         setInfoPaneTitle(vertexInfoInMemory.size(), 0);
