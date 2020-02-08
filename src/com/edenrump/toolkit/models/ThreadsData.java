@@ -37,7 +37,7 @@ public class ThreadsData {
      * Return the vertex data in the dataset
      * @return the vertex data
      */
-    public List<VertexData> getVertices() {
+    public List<Vertex> getVertices() {
         return vertices;
     }
 
@@ -54,7 +54,7 @@ public class ThreadsData {
     /**
      * The list of vertices in the dataset
      */
-    private List<VertexData> vertices;
+    private List<Vertex> vertices;
     //TODO: add edge data
 
     /**
@@ -63,7 +63,7 @@ public class ThreadsData {
      * @param id the id of the data set
      * @param vertices the vertices in the data set
      */
-    public ThreadsData(String name, String id, List<VertexData> vertices){
+    public ThreadsData(String name, String id, List<Vertex> vertices){
         this.name = name;
         this.id = id;
         this.vertices = new ArrayList<>(vertices);

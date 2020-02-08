@@ -9,33 +9,34 @@
 
 package com.edenrump.toolkit.graph;
 
-import com.edenrump.toolkit.models.VertexData;
+import com.edenrump.toolkit.models.Vertex;
 import javafx.scene.Node;
+import javafx.scene.layout.Region;
 
 /**
  * Class representing the information necessary to link the vertex data with its preparation node and its
  * living node in the scene graph.
  */
 public class DataAndNodes {
-    private VertexData vertexData;
-    private Node preparationNode;
-    private Node displayNode;
+    private Vertex vertex;
+    private Region preparationNode;
+    private Region displayNode;
 
-    public DataAndNodes(VertexData vd, Node p, Node d) {
-        this.vertexData = vd;
+    public DataAndNodes(Vertex vd, Region p, Region d) {
+        this.vertex = vd;
         this.preparationNode = p;
         this.displayNode = d;
     }
 
-    public VertexData getVertexData() {
-        return vertexData;
+    public Vertex getVertex() {
+        return vertex;
     }
 
-    public Node getPreparationNode() {
+    public Region getPreparationNode() {
         return preparationNode;
     }
 
-    public Node getDisplayNode() {
+    public Region getDisplayNode() {
         return displayNode;
     }
 }

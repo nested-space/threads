@@ -7,11 +7,12 @@
  *  *****************************************************************************
  */
 
-package com.edenrump.toolkit.ui;
+package com.edenrump.toolkit.ui.display;
 
 import com.edenrump.toolkit.graph.DataAndNodes;
 import com.edenrump.toolkit.graph.Graph;
-import com.edenrump.toolkit.models.VertexData;
+import com.edenrump.toolkit.models.Vertex;
+import com.edenrump.toolkit.ui.components.TitledContentPane;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.PauseTransition;
@@ -85,21 +86,22 @@ public class DepthGraphDisplay {
     /**
      * A map that contains all the edges that are connected to each node.
      */
-    private Map<DataAndNodes, Set<Shape>> displayNodeToEdgesMap = new HashMap<>();
+    private Map<String, Set<Shape>> vertexIdToEdgesMap = new HashMap<>();
+
     /**
      * A map of IDs to preparation and display nodes for all nodes in memory
      */
-    Map<String, DataAndNodes> allNodesIDMap = new HashMap<>();
-    private Set<DataAndNodes> currentlyVisibleVertices = new HashSet<>();
+    private Map<String, DataAndNodes> allNodesIDMap = new HashMap<>();
+    private Set<String> currentlyVisibleVerticesById = new HashSet<>();
     /**
      * A list of nodes that are being prepared for removal from the display pane on the next pass
      */
-    private Set<DataAndNodes> toBeRemoved = new HashSet<>();
+    private Set<String> verticesToBeRemovedOnNextRefresh = new HashSet<>();
 
     /**
      * A list of the currently-selected vertices in the process display window
      */
-    ObservableList<String> selectedVertices = FXCollections.observableArrayList();
+    ObservableList<String> selectedVertexIds = FXCollections.observableArrayList();
 
     /**
      * Whether the display currently has content that is unsaved. Modification of the display switches the flag to
@@ -109,13 +111,13 @@ public class DepthGraphDisplay {
     /**
      * The last-selected node in the display. Null if no node selected.
      */
-    private VertexData lastSelected;
+    private String lastSelectedVertexId;
     private HorizontalDirection plottingDirection;
 
     /**
      * Filter determining which nodes are visible in the display
      */
-    Set<Predicate<DataAndNodes>> visibleNodesFilters = new HashSet<>(Collections.singleton(entry -> true));
+    Set<Predicate<Vertex>> visibleNodesFilters = new HashSet<>(Collections.singleton(entry -> true));
 
     /**
      * Create a new Process Display
@@ -160,8 +162,8 @@ public class DepthGraphDisplay {
     }
 
     private void setDisplayPaneToRefreshOnWindowResize() {
-        graphDisplay.heightProperty().addListener((obs, o, n) -> reconcilePrepAndDisplay(currentlyVisibleVertices).playFromStart());
-        graphDisplay.widthProperty().addListener((obs, o, n) -> reconcilePrepAndDisplay(currentlyVisibleVertices).playFromStart());
+        graphDisplay.heightProperty().addListener((obs, o, n) -> reconcilePrepAndDisplay(currentlyVisibleVerticesById).playFromStart());
+        graphDisplay.widthProperty().addListener((obs, o, n) -> reconcilePrepAndDisplay(currentlyVisibleVerticesById).playFromStart());
     }
 
     private void wrapDisplayAndPreparationPanesInGraphDisplay() {
@@ -170,8 +172,8 @@ public class DepthGraphDisplay {
 
     private void unselectAllNodes() {
         resetHighlightingOnAllNodes();
-        selectedVertices.clear();
-        lastSelected = null;
+        selectedVertexIds.clear();
+        lastSelectedVertexId = null;
     }
 
     /**
@@ -179,32 +181,27 @@ public class DepthGraphDisplay {
      */
     public void clearDisplay() {
         clearNodes();
-        clearVertexInformationWithoutRefreshingDisplay();
+        removeVertexWithoutRefreshingDisplay();
     }
 
-    /**
-     * Clear all information in the preparation display maps
-     */
-    private void clearVertexInformationWithoutRefreshingDisplay() {
-        allNodesIDMap.clear();
-    }
 
     /**
      * Create a display that shows all the vertices
      *
      * @param vertices the vertices to show in the display
      */
-    public void createNewDisplayFromVertexData(List<VertexData> vertices) {
+    public void createNewDisplayFromVertexData(List<Vertex> vertices) {
         vertices.stream()
-                .map(VertexData::getDepth)
+                .map(Vertex::getDepth)
                 .distinct()
                 .forEach(depth -> vertices.stream()
                         .filter(v -> v.getDepth() == depth)
                         .forEach(vertexData -> {
                             DataAndNodes nodeData = generateNodes_LinkToData(vertexData);
-                            allNodesIDMap.put(vertexData.getId(), nodeData);
+                            addNodeWithoutRefreshingDisplay(vertexData.getId(), nodeData);
                         }));
     }
+
 
     /**
      * Method to allow external programs to show the context of the cached data on the display
@@ -218,8 +215,8 @@ public class DepthGraphDisplay {
      *
      * @return an observable list of selected vertices
      */
-    public ObservableList<String> getSelectedVertices() {
-        return selectedVertices;
+    public ObservableList<String> getSelectedVertexIds() {
+        return selectedVertexIds;
     }
 
     /**
@@ -230,12 +227,12 @@ public class DepthGraphDisplay {
      *
      * @param vertex the vertex to be added
      */
-    public void addVertexToDisplay(VertexData vertex) {
+    public void addVertexToDisplay(Vertex vertex) {
         setUnsavedContentFlagToTrue();
 
-        allNodesIDMap.put(vertex.getId(), generateNodes_LinkToData(vertex));
+        addNodeWithoutRefreshingDisplay(vertex.getId(), generateNodes_LinkToData(vertex));
         vertex.getConnectedVertices().forEach(id -> {
-            allNodesIDMap.get(id).getVertexData().addConnection(vertex.getId());
+            getVertexById(id).addConnection(vertex.getId());
         });
 
         updateDisplay();
@@ -246,26 +243,6 @@ public class DepthGraphDisplay {
         hasUnsavedContent.set(true);
     }
 
-    /**
-     * Select a vertex by its id. Return a read-only version of that vertex
-     *
-     * @param id the id of the vertex
-     * @return a read-only version of the vertex
-     */
-    public ReadOnlyObjectWrapper<VertexData> getVertex(String id) {
-        return allNodesIDMap.get(id).getVertexData().readOnly();
-    }
-
-    /**
-     * Return all VertexData currently cached in the display. Does not check whether nodes are currently dispalyed
-     * (this functionality is not be default supported anyway, but extensions of this class should override this method
-     * if they wanted to implement node-hiding
-     *
-     * @return all VertexData currently cached in the display
-     */
-    public List<VertexData> getAllVertexData() {
-        return allNodesIDMap.values().stream().map(DataAndNodes::getVertexData).collect(Collectors.toList());
-    }
 
     /**
      * Update the display nodes. If depth has changed, reset the preparation display. Update the vertex data
@@ -273,11 +250,11 @@ public class DepthGraphDisplay {
      * @param id     the id of the vertex to update
      * @param vertex the vertexData object containing the updated information
      */
-    public void updateVertexAndRefreshDisplay(String id, VertexData vertex) {
+    public void updateVertexAndRefreshDisplay(String id, Vertex vertex) {
         setUnsavedContentFlagToTrue();
 
-        updateNode(allNodesIDMap.get(id).getPreparationNode(), vertex);
-        updateNode(allNodesIDMap.get(id).getDisplayNode(), vertex);
+        updateNode(getPreparationNodeById(id), vertex);
+        updateNode(getDisplayNodeById(id), vertex);
 
         updateDisplay();
     }
@@ -289,17 +266,14 @@ public class DepthGraphDisplay {
      */
     public void deleteVertexAndUpdateDisplay(String vertexId) {
         setUnsavedContentFlagToTrue();
-        toBeRemoved.add(allNodesIDMap.get(vertexId));
+        verticesToBeRemovedOnNextRefresh.add(vertexId);
         removeVertexFromMapsAndUnconnectOtherVertices(vertexId);
         unselectAllNodes();
         updateDisplay();
     }
 
     private void removeVertexFromMapsAndUnconnectOtherVertices(String vertexId) {
-        allNodesIDMap.remove(vertexId);
-        allNodesIDMap.values().stream()
-                .map(DataAndNodes::getVertexData)
-                .forEach(vertex -> vertex.getConnectedVertices().remove(vertexId));
+        removeNodeWithoutRefreshingDisplay(vertexId);
     }
 
     /**
@@ -329,24 +303,24 @@ public class DepthGraphDisplay {
     public void updateLayout() {
 
         updateNodeVisibility();
-        currentlyVisibleVertices = visibilityStatusOfVertices.shouldBeVisible;
-        layoutPreparationDisplay(currentlyVisibleVertices);
+        currentlyVisibleVerticesById = visibilityStatusOfVertices.shouldBeVisible;
+        layoutPreparationDisplay(currentlyVisibleVerticesById);
 
-        for (DataAndNodes vertexToAppear : visibilityStatusOfVertices.verticesToAppear) {
-            vertexToAppear.getDisplayNode().setOpacity(0);
+        for (String vertexToAppear : visibilityStatusOfVertices.verticesToAppear) {
+            getDisplayNodeById(vertexToAppear).setOpacity(0);
         }
 
         pauseAndThenRunMethod(Duration.millis(250), this::makeNodesVisibleAndMoveNodesToCorrectPositions);
     }
 
-    public void makeNodesVisibleAndMoveNodesToCorrectPositions(){
+    public void makeNodesVisibleAndMoveNodesToCorrectPositions() {
         Timeline fadeOut = fadeOutNodes(visibilityStatusOfVertices.verticesToDisappear);
         Timeline fadeEdges = fadeOutEdges(visibilityStatusOfVertices.edgesToDisappear);
         fadeOut.getKeyFrames().addAll(fadeEdges.getKeyFrames());
 
         fadeOut.setOnFinished((removeNodes) -> {
-            for (DataAndNodes data : visibilityStatusOfVertices.verticesToDisappear) {
-                displayOverlay.getChildren().remove(data.getDisplayNode());
+            for (String id : visibilityStatusOfVertices.verticesToDisappear) {
+                displayOverlay.getChildren().remove(getDisplayNodeById(id));
             }
             for (Node edge : visibilityStatusOfVertices.edgesToDisappear) {
                 displayOverlay.getChildren().remove(edge);
@@ -354,17 +328,17 @@ public class DepthGraphDisplay {
         });
 
         //TIMELINE 2 determine nodes that are visible RIGHT NOW and move them to their correct locations
-        Set<DataAndNodes> visible = new HashSet<>(visibilityStatusOfVertices.shouldBeVisible);
+        Set<String> visible = new HashSet<>(visibilityStatusOfVertices.shouldBeVisible);
         visible.removeAll(visibilityStatusOfVertices.verticesToAppear);
         Timeline moveNodes = reconcilePrepAndDisplay(visible);
 
         //TIMELINE 3 add nodes to display, move them to the correct location and then fade in
         Set<Node> appearing = new HashSet<>();
-        for (DataAndNodes data : visibilityStatusOfVertices.verticesToAppear) {
-            displayOverlay.getChildren().add(data.getDisplayNode());
-            data.getDisplayNode().setLayoutX(ltsX(data.getPreparationNode()));
-            data.getDisplayNode().setLayoutY(ltsY(data.getPreparationNode()));
-            appearing.add(data.getDisplayNode());
+        for (String id : visibilityStatusOfVertices.verticesToAppear) {
+            displayOverlay.getChildren().add(getDisplayNodeById(id));
+            getDisplayNodeById(id).setLayoutX(ltsX(getPreparationNodeById(id)));
+            getDisplayNodeById(id).setLayoutY(ltsY(getPreparationNodeById(id)));
+            appearing.add(getDisplayNodeById(id));
         }
         Timeline appear = fadeInDesiredNodes(appearing);
         Timeline fadeInEdges = fadeInEdges(visibilityStatusOfVertices.edgesToAdd);
@@ -379,7 +353,7 @@ public class DepthGraphDisplay {
             //after a suitable delay, recalculate the heights and positions again
             PauseTransition recalculateHeights = new PauseTransition(Duration.seconds(0.5));
             recalculateHeights.setOnFinished((wait_event) -> {
-                reconcilePrepAndDisplay(currentlyVisibleVertices);
+                reconcilePrepAndDisplay(currentlyVisibleVerticesById);
             });
             recalculateHeights.play();
             move_event.consume();
@@ -391,10 +365,18 @@ public class DepthGraphDisplay {
      * Update colours for all nodes based on the associated vertex data
      */
     private void updateColors() {
-        for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
-            if (entry.getValue().getVertexData().hasProperty("color")) {
-                Color color = Color.web(entry.getValue().getVertexData().getProperty("color"));
-                TitledContentPane node = (TitledContentPane) entry.getValue().getDisplayNode();
+        for (String id : getAllVertexIds()) {
+            Vertex vertex = getVertexById(id);
+            if (vertex.hasProperty("color")) {
+                Color color;
+                try {
+                    color = Color.web(vertex.getProperty("color"));
+                } catch (IllegalArgumentException e) {
+                    color = Color.BLACK;
+                    //TODO: log error
+                }
+
+                TitledContentPane node = getDisplayNodeById(id);
                 node.setHeaderColor(color);
                 if (color.getBrightness() < 0.7) {
                     node.setTextColor(Color.WHITE);
@@ -417,38 +399,42 @@ public class DepthGraphDisplay {
     private void updateNodeVisibility() {
         visibilityStatusOfVertices = new NodeStatus();
         //find all nodes that should be visible
-        visibilityStatusOfVertices.shouldBeVisible = new HashSet<>(allNodesIDMap.values());
+        visibilityStatusOfVertices.shouldBeVisible = new HashSet<>(getAllVertexIds());
 
-        Predicate<DataAndNodes> allPredicates = visibleNodesFilters.stream()
+        Predicate<Vertex> allPredicates = visibleNodesFilters.stream()
                 .reduce(p -> true, Predicate::and);
 
         visibilityStatusOfVertices.shouldBeVisible = visibilityStatusOfVertices.shouldBeVisible.stream()
-                .filter(allPredicates).collect(Collectors.toSet());
+                .map(this::getVertexById)
+                .filter(allPredicates)
+                .map(Vertex::getId)
+                .collect(Collectors.toSet());
 
         //nodes that should be visible but aren't
         visibilityStatusOfVertices.verticesToAppear = new HashSet<>(visibilityStatusOfVertices.shouldBeVisible);
-        visibilityStatusOfVertices.verticesToAppear.removeAll(currentlyVisibleVertices);
+        visibilityStatusOfVertices.verticesToAppear.removeAll(currentlyVisibleVerticesById);
 
         //iterate through nodes that are determined to be appearing and add a node for each.
         // NB: createEdge() curates maps but does not add them to the display - this is done separately.
-        for (DataAndNodes appearing : visibilityStatusOfVertices.verticesToAppear) {
-            for (String otherVertexId : appearing.getVertexData().getConnectedVertices()) {
-                if (visibilityStatusOfVertices.shouldBeVisible.stream().map(data -> data.getVertexData().getId()).collect(Collectors.toList()).contains(otherVertexId)) {
-                    visibilityStatusOfVertices.edgesToAdd.add(createEdge(allNodesIDMap.get(otherVertexId), appearing));
+        for (String appearing : visibilityStatusOfVertices.verticesToAppear) {
+            for (String otherVertexId : getVertexById(appearing).getConnectedVertices()) {
+                if (visibilityStatusOfVertices.shouldBeVisible.contains(otherVertexId)) {
+                    visibilityStatusOfVertices.edgesToAdd.add(createEdge(otherVertexId, appearing));
                 }
             }
         }
 
         //nodes that shouldn't be visible, but are
-        for (DataAndNodes data : toBeRemoved) {
-            if (currentlyVisibleVertices.contains(data)) visibilityStatusOfVertices.verticesToDisappear.add(data);
+        for (String id : verticesToBeRemovedOnNextRefresh) {
+            if (currentlyVisibleVerticesById.contains(id)) visibilityStatusOfVertices.verticesToDisappear.add(id);
         }
-        for (DataAndNodes data : currentlyVisibleVertices) {
-            if (!visibilityStatusOfVertices.shouldBeVisible.contains(data)) visibilityStatusOfVertices.verticesToDisappear.add(data);
+        for (String id : currentlyVisibleVerticesById) {
+            if (!visibilityStatusOfVertices.shouldBeVisible.contains(id))
+                visibilityStatusOfVertices.verticesToDisappear.add(id);
         }
 
         //from status.disappear, determine connected edges and add them to edgesToRemove
-        List<Set<Shape>> edgeLists = displayNodeToEdgesMap.entrySet()
+        List<Set<Shape>> edgeLists = vertexIdToEdgesMap.entrySet()
                 .stream()
                 .filter(entry -> visibilityStatusOfVertices.verticesToDisappear.contains(entry.getKey()))
                 .map(Map.Entry::getValue).collect(Collectors.toList());
@@ -456,7 +442,7 @@ public class DepthGraphDisplay {
             visibilityStatusOfVertices.edgesToDisappear.addAll(edgeList);
         }
 
-        toBeRemoved.clear();
+        verticesToBeRemovedOnNextRefresh.clear();
     }
 
     /**
@@ -465,12 +451,12 @@ public class DepthGraphDisplay {
      * @param disappear a set of nodes which should be faded out
      * @return a timeline that fades out the nodes that should not be visible in the display
      */
-    private Timeline fadeOutNodes(Set<DataAndNodes> disappear) {
+    private Timeline fadeOutNodes(Set<String> disappear) {
         Timeline fadeOut = new Timeline(30);
-        for (DataAndNodes data : disappear) {
+        for (String id : disappear) {
             fadeOut.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().opacityProperty(), data.getDisplayNode().getOpacity())),
-                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(data.getDisplayNode().opacityProperty(), 0)));
+                    new KeyFrame(Duration.millis(0), new KeyValue(getDisplayNodeById(id).opacityProperty(), getDisplayNodeById(id).getOpacity())),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(getDisplayNodeById(id).opacityProperty(), 0)));
         }
         return fadeOut;
     }
@@ -526,17 +512,17 @@ public class DepthGraphDisplay {
     /**
      * Create animations to move display nodes to the same scene-locations as the preparation nodes
      */
-    private Timeline reconcilePrepAndDisplay(Set<DataAndNodes> nodes) {
+    private Timeline reconcilePrepAndDisplay(Set<String> nodes) {
         Timeline movementTimeline = new Timeline(30);
-        for (DataAndNodes data : nodes) {
-            Region disp = (Region) data.getDisplayNode();
-            Region prep = (Region) data.getPreparationNode();
+        for (String id : nodes) {
+            TitledContentPane disp = getDisplayNodeById(id);
+            TitledContentPane prep = getPreparationNodeById(id);
             disp.setMaxHeight(prep.getHeight());
             movementTimeline.getKeyFrames().addAll(
-                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().layoutXProperty(), data.getDisplayNode().getLayoutX())),
-                    new KeyFrame(Duration.millis(0), new KeyValue(data.getDisplayNode().layoutYProperty(), data.getDisplayNode().getLayoutY())),
-                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(data.getDisplayNode().layoutXProperty(), Math.max(ltsX(data.getPreparationNode()), 0))),
-                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(data.getDisplayNode().layoutYProperty(), Math.max(ltsY(data.getPreparationNode()), 0))));
+                    new KeyFrame(Duration.millis(0), new KeyValue(disp.layoutXProperty(), disp.getLayoutX())),
+                    new KeyFrame(Duration.millis(0), new KeyValue(disp.layoutYProperty(), disp.getLayoutY())),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(disp.layoutXProperty(), Math.max(ltsX(prep), 0))),
+                    new KeyFrame(Duration.millis(ANIMATION_LENGTH), new KeyValue(disp.layoutYProperty(), Math.max(ltsY(prep), 0))));
         }
         for (Labels labels : depthPrepDisplayLabelMap.values()) {
             movementTimeline.getKeyFrames().addAll(
@@ -580,7 +566,7 @@ public class DepthGraphDisplay {
      * Deselect all nodes
      */
     public void deselectAll() {
-        selectedVertices.clear();
+        selectedVertexIds.clear();
         resetHighlightingOnAllNodes();
     }
 
@@ -588,7 +574,7 @@ public class DepthGraphDisplay {
      * Select all nodes
      */
     public void selectAll() {
-        selectedVertices.setAll(allNodesIDMap.keySet());
+        selectedVertexIds.setAll(allNodesIDMap.keySet());
         highlightSelectedNodes();
         lowlightUnselectedNodes();
     }
@@ -600,7 +586,7 @@ public class DepthGraphDisplay {
      * @param data the vertex data
      * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
      */
-    private DataAndNodes generateNodes_LinkToData(VertexData data) {
+    private DataAndNodes generateNodes_LinkToData(Vertex data) {
         //Create node for preparation area of display
         TitledContentPane prepNode = convertDataToNode(data);
         if (data.hasProperty("url")) prepNode.addTag("url", data.getProperty("url"));
@@ -632,25 +618,25 @@ public class DepthGraphDisplay {
     /**
      * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
      */
-    private void layoutPreparationDisplay(Set<DataAndNodes> vertexMap) {
+    private void layoutPreparationDisplay(Set<String> vertexMap) {
         preparationContainer.getChildren().clear();
         depthPrepDisplayLabelMap.clear();
 
         vertexMap.stream()
-                .map(data -> data.getVertexData().getDepth())
+                .map(id -> getVertexById(id).getDepth())
                 .distinct()
                 .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
                 .collect(Collectors.toList())
                 .forEach(depth -> {
                     List<String> prepNodes = new ArrayList<>();
                     vertexMap.stream()
-                            .filter(v -> v.getVertexData().getDepth() == depth)
-                            .forEach(dn -> prepNodes.add(dn.getVertexData().getId()));
+                            .filter(id -> getVertexById(id).getDepth() == depth)
+                            .forEach(prepNodes::add);
                     preparationContainer.getChildren().add(createPrepColumn(prepNodes, depth));
                 });
     }
 
-    boolean preventDefaultHighlight = false;
+    private boolean preventDefaultHighlight = false;
 
     /**
      * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
@@ -660,32 +646,29 @@ public class DepthGraphDisplay {
      * @param event    the mouse-event that triggered the selection
      */
     private void handleSelection(String vertexId, MouseEvent event) {
-        if (event.getButton() == MouseButton.SECONDARY && selectedVertices.contains(vertexId)) {
+        if (event.getButton() == MouseButton.SECONDARY && selectedVertexIds.contains(vertexId)) {
             event.consume();
             return;
         }
 
         boolean preventAdditionalActions = false;
 
-        VertexData vertexClicked = allNodesIDMap.get(vertexId).getVertexData();
-        if (event.isShiftDown() && lastSelected != null) {
-            List<VertexData> vertices = Graph.findShortestPath(lastSelected, vertexClicked,
-                    allNodesIDMap.values().stream()
-                            .map(DataAndNodes::getVertexData)
-                            .collect(Collectors.toList()));
-            selectedVertices.setAll(vertices.stream().map(VertexData::getId).collect(Collectors.toList()));
+        Vertex vertexClicked = getVertexById(vertexId);
+        if (event.isShiftDown() && lastSelectedVertexId != null) {
+            List<Vertex> vertices = Graph.findShortestPath(getVertexById(vertexId), vertexClicked, getAllVertexData());
+            selectedVertexIds.setAll(vertices.stream().map(Vertex::getId).collect(Collectors.toList()));
             preventAdditionalActions = true;
         } else if (event.isControlDown()) {
-            if (!selectedVertices.contains(vertexClicked.getId())) {
-                selectedVertices.add(vertexClicked.getId());
-                lastSelected = vertexClicked;
+            if (!selectedVertexIds.contains(vertexClicked.getId())) {
+                selectedVertexIds.add(vertexClicked.getId());
+                lastSelectedVertexId = vertexId;
             } else {
-                selectedVertices.remove(vertexClicked.getId());
+                selectedVertexIds.remove(vertexId);
             }
             preventAdditionalActions = true;
         } else {
-            selectedVertices.setAll(vertexClicked.getId());
-            lastSelected = vertexClicked;
+            selectedVertexIds.setAll(vertexId);
+            lastSelectedVertexId = vertexId;
         }
 
         if (!preventAdditionalActions) {
@@ -716,39 +699,40 @@ public class DepthGraphDisplay {
      * Separate vertex nodes by selection. Highlight selected nodes. Lowlight unselected nodes.
      */
     public void highlightSelectedNodes() {
-        selectedVertices.stream()
-                .map(id -> (TitledContentPane) allNodesIDMap.get(id).getDisplayNode())
+        selectedVertexIds.stream()
+                .map(this::getDisplayNodeById)
                 .forEach(pane -> {
                     pane.highlightOne();
-                    if (selectedVertices.size() == 1) {
+                    if (selectedVertexIds.size() == 1) {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
                     } else {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, multipleSelectionContextMenu(pane.getId()), e));
                     }
                 });
 
-        if (lastSelected != null) {
-            TitledContentPane last = (TitledContentPane) allNodesIDMap.get(lastSelected.getId()).getDisplayNode();
+        if (lastSelectedVertexId != null) {
+            TitledContentPane last = getDisplayNodeById(lastSelectedVertexId);
             last.highlightTwo();
         }
     }
 
-    public void lowlightUnselectedNodes() {
-        allNodesIDMap.values().stream().map(DataAndNodes::getVertexData) //all vertices
-                .filter(v -> !selectedVertices.contains(v.getId()))
-                .map(v -> (TitledContentPane) allNodesIDMap.get(v.getId()).getDisplayNode())
-                .forEach(pane -> {
-                    pane.lowlight();
-                    pane.setOnContextMenuRequested(null);
-                });
+    private void lowlightUnselectedNodes() {
+
+        for(String id: getAllVertexIds()){
+            if(selectedVertexIds.contains(id)){
+                TitledContentPane disp = getDisplayNodeById(id);
+                disp.lowlight();
+                disp.setOnContextMenuRequested(null);
+            }
+        }
     }
 
     /**
      * Utility method to unhighlight all nodes in the idToNodeMap
      */
-    public void resetHighlightingOnAllNodes() {
-        for (Map.Entry<String, DataAndNodes> entry : allNodesIDMap.entrySet()) {
-            TitledContentPane displayNode = (TitledContentPane) entry.getValue().getDisplayNode();
+    private void resetHighlightingOnAllNodes() {
+        for (String id: getAllVertexIds()) {
+            TitledContentPane displayNode = getDisplayNodeById(id);
             displayNode.resetHighlighting();
         }
     }
@@ -759,7 +743,7 @@ public class DepthGraphDisplay {
      * @param v the vertex to display
      * @return a consistent node to display on the scene graph
      */
-    private TitledContentPane convertDataToNode(VertexData v) {
+    private TitledContentPane convertDataToNode(Vertex v) {
         TitledContentPane node = new TitledContentPane();
         node.addHeaderBox(v.getName(), v.getId(), Color.web("#D1DBE3"));
         return node;
@@ -797,18 +781,19 @@ public class DepthGraphDisplay {
     public int calculatePriority(int depth, VerticalDirection topOrBottom) {
         int rowPriorityIncrement = 32000;
 
-        List<Integer> siblingPriorities = allNodesIDMap.values()
-                .stream()
-                .filter(data -> data.getVertexData().getDepth() == depth)
-                .map(data -> data.getVertexData().getPriority())
-                .collect(Collectors.toList());
+        int maxPriority = Integer.MIN_VALUE;
+        int minPriority = Integer.MAX_VALUE;
+        for (String id : getAllVerticesAtDepth(depth)) {
+            minPriority = Math.min(minPriority, getVertexById(id).getDepth());
+            maxPriority = Math.min(maxPriority, getVertexById(id).getDepth());
+        }
 
-        if (siblingPriorities.size() == 0) return rowPriorityIncrement;
-
+        if (maxPriority == Integer.MIN_VALUE) return 0;
         return topOrBottom == VerticalDirection.DOWN ?
-                Collections.max(siblingPriorities) + rowPriorityIncrement :
-                Collections.min(siblingPriorities) - rowPriorityIncrement;
+                maxPriority + rowPriorityIncrement :
+                minPriority - rowPriorityIncrement;
     }
+
 
     /**
      * Create a context menu associated with a vertex where only a single vertex has been selected
@@ -826,17 +811,17 @@ public class DepthGraphDisplay {
      * @param vertex1 the first vertex
      * @param vertex2 the second vertex
      */
-    private Shape createEdge(DataAndNodes vertex1, DataAndNodes vertex2) {
-        boolean v2_deeper_v1 = vertex2.getVertexData().getDepth() > vertex1.getVertexData().getDepth();
+    private Shape createEdge(String vertex1, String vertex2) {
+        boolean v2_deeper_v1 = getVertexById(vertex2).getDepth() > getVertexById(vertex1).getDepth();
 
         Region startBox;
         Region endBox;
         if ((!v2_deeper_v1 && plottingDirection == HorizontalDirection.LEFT) || (v2_deeper_v1 && plottingDirection == HorizontalDirection.RIGHT)) {
-            startBox = (Region) vertex1.getDisplayNode();
-            endBox = (Region) vertex2.getDisplayNode();
+            startBox = getDisplayNodeById(vertex1);
+            endBox = getDisplayNodeById(vertex2);
         } else if ((v2_deeper_v1 && plottingDirection == HorizontalDirection.LEFT) || (!v2_deeper_v1 && plottingDirection == HorizontalDirection.RIGHT)) {
-            startBox = (Region) vertex2.getDisplayNode();
-            endBox = (Region) vertex1.getDisplayNode();
+            startBox = getDisplayNodeById(vertex2);
+            endBox = getDisplayNodeById(vertex1);
         } else {
             throw new IllegalArgumentException("createEdge() doesn't support two nodes at equal depth (yet)"); //TODO: add support for nodes at equal depth.
         }
@@ -868,9 +853,9 @@ public class DepthGraphDisplay {
      * @param vertex the vertex to which the edge should be bound
      * @param edge   the edge
      */
-    private void linkVertexToEdge(DataAndNodes vertex, Shape edge) {
-        displayNodeToEdgesMap.computeIfAbsent(vertex, k -> new HashSet<>());
-        displayNodeToEdgesMap.get(vertex).add(edge);
+    private void linkVertexToEdge(String vertex, Shape edge) {
+        vertexIdToEdgesMap.computeIfAbsent(vertex, k -> new HashSet<>());
+        vertexIdToEdgesMap.get(vertex).add(edge);
     }
 
     /**
@@ -880,19 +865,17 @@ public class DepthGraphDisplay {
      * @param n the node to update
      * @param v the vertex containing the information to place inside the node.
      */
-    private void updateNode(Node n, VertexData v) {
-        if (n instanceof TitledContentPane) {
-            TitledContentPane tcp = (TitledContentPane) n;
-            tcp.setTitle(v.getName());
-            if (v.hasProperty("url")) {
-                if (!tcp.hasTag("url")) {
-                    tcp.addTag("url", v.getProperty("url"));
-                } else {
-                    tcp.updateTag("url", v.getProperty("url"));
-                }
+    private void updateNode(TitledContentPane n, Vertex v) {
+        TitledContentPane tcp = (TitledContentPane) n;
+        tcp.setTitle(v.getName());
+        if (v.hasProperty("url")) {
+            if (!tcp.hasTag("url")) {
+                tcp.addTag("url", v.getProperty("url"));
             } else {
-                if (tcp.hasTag("url")) tcp.removeTag("url");
+                tcp.updateTag("url", v.getProperty("url"));
             }
+        } else {
+            if (tcp.hasTag("url")) tcp.removeTag("url");
         }
     }
 
@@ -908,12 +891,11 @@ public class DepthGraphDisplay {
         body.setSpacing(35);
         body.setAlignment(Pos.TOP_CENTER);
 
-        Comparator<VertexData> sortPriority = Comparator.comparingDouble(VertexData::getPriority);
-        allNodesIDMap.keySet().stream()
-                .filter(nodeIds::contains)
-                .map(id -> allNodesIDMap.get(id).getVertexData())
-                .sorted(sortPriority)
-                .forEachOrdered(data -> body.getChildren().add(allNodesIDMap.get(data.getId()).getPreparationNode()));
+        for (String id : geAllVerticesSortedByPriority()) {
+            if (nodeIds.contains(id)) {
+                body.getChildren().add(getPreparationNodeById(id));
+            }
+        }
 
         return body;
     }
@@ -926,20 +908,20 @@ public class DepthGraphDisplay {
         visibleNodesFilters.clear();
     }
 
-    public void addVisibilityFilter(Predicate<DataAndNodes> filter) {
+    public void addVisibilityFilter(Predicate<Vertex> filter) {
         visibleNodesFilters.add(filter);
     }
 
-    public void removeVisibilityFilter(Predicate<? super DataAndNodes> filter) {
+    public void removeVisibilityFilter(Predicate<Vertex> filter) {
         visibleNodesFilters.remove(filter);
     }
 
     public void clearSelectedVertices() {
-        selectedVertices.clear();
+        selectedVertexIds.clear();
     }
 
     public void addSelectedVertex(String id) {
-        selectedVertices.add(id);
+        selectedVertexIds.add(id);
     }
 
     /**
@@ -983,17 +965,72 @@ public class DepthGraphDisplay {
      * Class representing the status of nodes in a display with respect to whether they should be visible or not.
      */
     private static class NodeStatus {
-        Set<DataAndNodes> shouldBeVisible = new HashSet<>();
-        Set<DataAndNodes> verticesToAppear = new HashSet<>();
-        Set<DataAndNodes> verticesToDisappear = new HashSet<>();
+        Set<String> shouldBeVisible = new HashSet<>();
+        Set<String> verticesToAppear = new HashSet<>();
+        Set<String> verticesToDisappear = new HashSet<>();
         Set<Shape> edgesToDisappear = new HashSet<>();
         Set<Shape> edgesToAdd = new HashSet<>();
 
         NodeStatus() {
         }
 
-        NodeStatus(Set<DataAndNodes> current) {
+        NodeStatus(Set<String> current) {
             shouldBeVisible = new HashSet<>(current);
         }
     }
+
+    private void removeVertexWithoutRefreshingDisplay() {
+        allNodesIDMap.clear();
+    }
+
+
+    private void addNodeWithoutRefreshingDisplay(String nodeId, DataAndNodes nodes) {
+        allNodesIDMap.put(nodeId, nodes);
+    }
+
+    private void removeNodeWithoutRefreshingDisplay(String id) {
+        allNodesIDMap.remove(id);
+        for (String otherId : getAllVertexIds()) {
+            getVertexById(otherId).getConnectedVertices().remove(id);
+        }
+    }
+
+    private TitledContentPane getDisplayNodeById(String nodeId) {
+        return (TitledContentPane) allNodesIDMap.get(nodeId).getDisplayNode();
+    }
+
+    private TitledContentPane getPreparationNodeById(String id) {
+        return (TitledContentPane) allNodesIDMap.get(id).getPreparationNode();
+    }
+
+    private Set<String> getAllVertexIds() {
+        return allNodesIDMap.keySet();
+    }
+
+    private Vertex getVertexById(String id) {
+        return allNodesIDMap.get(id).getVertex();
+    }
+
+    private List<String> geAllVerticesSortedByPriority() {
+        List<String> vertices = new ArrayList<>(getAllVertexIds());
+        vertices.sort(Comparator.comparingInt(o -> getVertexById(o).getPriority()));
+        return vertices;
+    }
+
+    private Set<String> getAllVerticesAtDepth(int depth) {
+        Set<String> verticesAtDepth = new HashSet<>();
+        for (String id : getAllVertexIds()) {
+            if (getVertexById(id).getDepth() == depth) verticesAtDepth.add(id);
+        }
+        return verticesAtDepth;
+    }
+
+    public ReadOnlyObjectWrapper<Vertex> getReadOnlyVertex(String id) {
+        return allNodesIDMap.get(id).getVertex().readOnly();
+    }
+
+    public List<Vertex> getAllVertexData() {
+        return allNodesIDMap.values().stream().map(DataAndNodes::getVertex).collect(Collectors.toList());
+    }
+
 }

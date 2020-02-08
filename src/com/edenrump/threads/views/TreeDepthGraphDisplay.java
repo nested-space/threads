@@ -12,8 +12,8 @@ package com.edenrump.threads.views;
 import com.edenrump.toolkit.graph.DataAndNodes;
 import com.edenrump.toolkit.graph.DepthDirection;
 import com.edenrump.toolkit.graph.Graph;
-import com.edenrump.toolkit.models.VertexData;
-import com.edenrump.toolkit.ui.DepthGraphDisplay;
+import com.edenrump.toolkit.models.Vertex;
+import com.edenrump.toolkit.ui.display.DepthGraphDisplay;
 import javafx.collections.ObservableList;
 import javafx.geometry.HorizontalDirection;
 import javafx.geometry.Pos;
@@ -62,14 +62,14 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     public TreeDepthGraphDisplay(ScrollPane display) {
         super(display, PLOTTING_DIRECTION);
-        selectorFilter = entry -> entry.getVertexData().getDepth() == 0;
+        selectorFilter = vertex -> vertex.getDepth() == 0;
         addVisibilityFilter(selectorFilter);
     }
 
     /**
      * The selection filter to be applied whenever a layoutPass is requested
      */
-    Predicate<DataAndNodes> selectorFilter;
+    Predicate<Vertex> selectorFilter;
 
     /**
      * Determine whether the secondary button has launched the event. If so, return.
@@ -83,13 +83,13 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     @Override
     public void addMouseActions(String vertexId, MouseEvent event) {
-        if (getAllNodesIDMap().get(vertexId).getVertexData().getDepth() == 0) {
+        if (getAllNodesIDMap().get(vertexId).getVertex().getDepth() == 0) {
             selectedRootNode = getAllNodesIDMap().get(vertexId);
 
             removeVisibilityFilter(selectorFilter);
-            selectorFilter = entry -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllVertexData())
+            selectorFilter = vertex -> Graph.unidirectionalFill(vertexId, DepthDirection.INCREASING_DEPTH, getAllVertexData())
                     .stream()
-                    .map(VertexData::getId).collect(Collectors.toList()).contains(entry.getVertexData().getId()) || entry.getVertexData().getDepth() == 0;
+                    .map(Vertex::getId).collect(Collectors.toList()).contains(vertex.getId()) || vertex.getDepth() == 0;
             addVisibilityFilter(selectorFilter);
 
             clearSelectedVertices();
@@ -113,12 +113,12 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         body.setSpacing(35);
         body.setAlignment(Pos.TOP_CENTER);
 
-        boolean notRootColumn = getAllNodesIDMap().get(nodeIds.get(0)).getVertexData().getDepth() != 0;
+        boolean notRootColumn = getAllNodesIDMap().get(nodeIds.get(0)).getVertex().getDepth() != 0;
 
         if (selectedRootNode != null && notRootColumn) {
             List<DataAndNodes> rootNodes = getAllNodesIDMap().values().stream()
-                    .filter(data -> data.getVertexData().getDepth() == 0)
-                    .sorted(Comparator.comparingInt(o -> o.getVertexData().getPriority()))
+                    .filter(data -> data.getVertex().getDepth() == 0)
+                    .sorted(Comparator.comparingInt(o -> o.getVertex().getPriority()))
                     .collect(Collectors.toList());
             int index = rootNodes.indexOf(selectedRootNode);
             if (index > (0.65 * rootNodes.size())) {
@@ -130,10 +130,10 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             }
         }
 
-        Comparator<VertexData> sortPriority = Comparator.comparingDouble(VertexData::getPriority);
+        Comparator<Vertex> sortPriority = Comparator.comparingDouble(Vertex::getPriority);
         getAllNodesIDMap().keySet().stream()
                 .filter(nodeIds::contains)
-                .map(id -> getAllNodesIDMap().get(id).getVertexData())
+                .map(id -> getAllNodesIDMap().get(id).getVertex())
                 .sorted(sortPriority)
                 .forEachOrdered(data -> body.getChildren().add(getAllNodesIDMap().get(data.getId()).getPreparationNode()));
 
@@ -155,7 +155,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         delete.setOnAction(event -> deleteVertexAndUpdateDisplay(id));
         MenuItem deleteAll = new MenuItem("Delete all");
         delete.setOnAction(event -> {
-            for (String vertex : getSelectedVertices()) {
+            for (String vertex : getSelectedVertexIds()) {
                 deleteVertexAndUpdateDisplay(vertex);
             }
         });
@@ -193,9 +193,9 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     }
 
     private void changeSelectedItemColors(String color) {
-        ObservableList<String> vertices = getSelectedVertices();
+        ObservableList<String> vertices = getSelectedVertexIds();
         for (String id : vertices) {
-            VertexData v = getAllNodesIDMap().get(id).getVertexData();
+            Vertex v = getAllNodesIDMap().get(id).getVertex();
             v.overwriteProperty("color", color);
             updateVertexAndRefreshDisplay(id, v);
         }
@@ -213,8 +213,8 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         ContextMenu menu = multipleSelectionContextMenu(id);
         MenuItem addMoreDepth = new MenuItem("Add Node Right ->");
         addMoreDepth.setOnAction(event -> {
-            int depth = getAllNodesIDMap().get(id).getVertexData().getDepth() + 1;
-            addVertexToDisplay(new VertexData("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
+            int depth = getAllNodesIDMap().get(id).getVertex().getDepth() + 1;
+            addVertexToDisplay(new Vertex("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
                     depth,
                     calculatePriority(depth, VerticalDirection.DOWN)));
         });

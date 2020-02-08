@@ -12,7 +12,7 @@ package com.edenrump.threads.output;
 import com.edenrump.toolkit.graph.DepthDirection;
 import com.edenrump.toolkit.graph.Graph;
 import com.edenrump.toolkit.models.ThreadsData;
-import com.edenrump.toolkit.models.VertexData;
+import com.edenrump.toolkit.models.Vertex;
 import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
@@ -56,7 +56,7 @@ public class PDFExporter {
 
         threadsData.getVertices().stream()
                 .filter(vertexData -> vertexData.getDepth() == 0)
-                .sorted(Comparator.comparingInt(VertexData::getPriority))
+                .sorted(Comparator.comparingInt(Vertex::getPriority))
                 .forEach(vertexData -> addSectionContent(
                         Graph.unidirectionalFill(vertexData.getId(), DepthDirection.INCREASING_DEPTH, threadsData.getVertices()),
                         doc,
@@ -64,7 +64,7 @@ public class PDFExporter {
         doc.close();
     }
 
-    private static void addSectionContent(List<VertexData> vertices, Document doc, VertexData root) {
+    private static void addSectionContent(List<Vertex> vertices, Document doc, Vertex root) {
 
         Paragraph sectionHeader = new Paragraph(root.getName()).setFont(header);
         doc.add(sectionHeader);
@@ -78,13 +78,13 @@ public class PDFExporter {
 
         vertices.stream()
                 .filter(vertexData -> vertexData.getDepth() == internalDocDepth)
-                .sorted(Comparator.comparingInt(VertexData::getPriority))
+                .sorted(Comparator.comparingInt(Vertex::getPriority))
                 .forEach(internalDoc -> {
                     //get all leaves -> important to know rowSpan for internal document!
-                    List<VertexData> leaves = new ArrayList<>();
-                    for (VertexData vertexData : vertices) {
-                        if (vertexData.getDepth() == rootDataDepth && internalDoc.getConnectedVertices().contains(vertexData.getId())) {
-                            leaves.add(vertexData);
+                    List<Vertex> leaves = new ArrayList<>();
+                    for (Vertex vertex : vertices) {
+                        if (vertex.getDepth() == rootDataDepth && internalDoc.getConnectedVertices().contains(vertex.getId())) {
+                            leaves.add(vertex);
                         }
                     }
 
@@ -92,7 +92,7 @@ public class PDFExporter {
                     Cell internalDocCell = linkContentCell(internalDoc, "", leaves.size(), leaves.size() == 0 ? 2 : 1);
 
                     table.addCell(internalDocCell);
-                    for (VertexData rawDataVertex : leaves) {
+                    for (Vertex rawDataVertex : leaves) {
                         table.addCell(linkContentCell(rawDataVertex, "(no link)", 1, 1));
                     }
                 });
@@ -104,7 +104,7 @@ public class PDFExporter {
         doc.setTextAlignment(TextAlignment.LEFT);
     }
 
-    private static Cell linkContentCell(VertexData data, String noLinkText, int rowSpan, int colSpan) {
+    private static Cell linkContentCell(Vertex data, String noLinkText, int rowSpan, int colSpan) {
         Cell cell = new Cell(rowSpan, colSpan).add(new Paragraph(data.getName())).setFont(body);
         if (data.hasProperty("url")) {
             cell.add(getAnchorTag("", "Link", data.getProperty("url"), ""));

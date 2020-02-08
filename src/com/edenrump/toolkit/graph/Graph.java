@@ -9,7 +9,7 @@
 
 package com.edenrump.toolkit.graph;
 
-import com.edenrump.toolkit.models.VertexData;
+import com.edenrump.toolkit.models.Vertex;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,24 +27,24 @@ public class Graph {
     /**
      * Collect the nodes with no upstream linkages. Return these as a list.
      *
-     * @param vertexDataList the entire list of nodes to be parsed
+     * @param vertexList the entire list of nodes to be parsed
      * @return a list of nodes with no upstream linkages
      */
-    public static List<VertexData> getLeavesUnidirectional(DepthDirection searchDirection, List<VertexData> vertexDataList) {
+    public static List<Vertex> getLeavesUnidirectional(DepthDirection searchDirection, List<Vertex> vertexList) {
         if (searchDirection == DepthDirection.INCREASING_DEPTH) {
-            return vertexDataList
+            return vertexList
                     .stream()
-                    .filter(v -> v.getDepth() == Collections.max(vertexDataList
+                    .filter(v -> v.getDepth() == Collections.max(vertexList
                             .stream()
-                            .map(VertexData::getDepth)
+                            .map(Vertex::getDepth)
                             .collect(Collectors.toList())))
                     .collect(Collectors.toList());
         } else {
-            return vertexDataList
+            return vertexList
                     .stream()
-                    .filter(v -> v.getDepth() == Collections.min(vertexDataList
+                    .filter(v -> v.getDepth() == Collections.min(vertexList
                             .stream()
-                            .map(VertexData::getDepth)
+                            .map(Vertex::getDepth)
                             .collect(Collectors.toList())))
                     .collect(Collectors.toList());
         }
@@ -60,7 +60,7 @@ public class Graph {
      * @param allVertices      the vertex data map
      * @return an ordered list containing
      */
-    public static List<VertexData> findShortestPath(VertexData startVertex, VertexData desinationVertex, List<VertexData> allVertices) {
+    public static List<Vertex> findShortestPath(Vertex startVertex, Vertex desinationVertex, List<Vertex> allVertices) {
         if (desinationVertex == startVertex) return new ArrayList<>(Collections.singletonList(startVertex));
 
         //if startVertex isn't in allVertices, return empty list because this isn't going to work...
@@ -69,7 +69,7 @@ public class Graph {
         //populate initial priority queue
         List<PriorityItem> priorityQueue = new LinkedList<>();
         Map<String, PriorityItem> idPriorityItemMap = new HashMap<>();
-        for (VertexData v : allVertices) {
+        for (Vertex v : allVertices) {
             PriorityItem item;
             if (v.equals(startVertex)) {
                 item = new PriorityItem(0, v);
@@ -107,7 +107,7 @@ public class Graph {
 
         if (!bestPathFound) return new ArrayList<>(); //if maxed out cycles, return empty list rather than null
 
-        List<VertexData> path = new LinkedList<>();
+        List<Vertex> path = new LinkedList<>();
         PriorityItem retraceCaret = priorityQueue.get(0);
         while (retraceCaret.vertex != startVertex) {
             path.add(retraceCaret.vertex);
@@ -118,15 +118,15 @@ public class Graph {
         return path;
     }
 
-    public static List<VertexData> unidirectionalFill(String vertexID, DepthDirection direction, List<VertexData> vertices) {
-        Map<String, VertexData> nodeMap = new HashMap<>();
-        for(VertexData vertex : vertices){
+    public static List<Vertex> unidirectionalFill(String vertexID, DepthDirection direction, List<Vertex> vertices) {
+        Map<String, Vertex> nodeMap = new HashMap<>();
+        for(Vertex vertex : vertices){
             nodeMap.put(vertex.getId(), vertex);
         }
         if (!nodeMap.containsKey(vertexID)) return new ArrayList<>();
 
-        VertexData currentVertex = nodeMap.get(vertexID);
-        List<VertexData> unvisitedVertices = currentVertex.getConnectedVertices().stream()
+        Vertex currentVertex = nodeMap.get(vertexID);
+        List<Vertex> unvisitedVertices = currentVertex.getConnectedVertices().stream()
                 .map(nodeMap::get)
                 .filter(data -> {
                     if (direction == DepthDirection.INCREASING_DEPTH) {
@@ -137,7 +137,7 @@ public class Graph {
                 })
                 .collect(Collectors.toList());
 
-        List<VertexData> visitedVertices = new ArrayList<>(Collections.singletonList(currentVertex));
+        List<Vertex> visitedVertices = new ArrayList<>(Collections.singletonList(currentVertex));
         while (unvisitedVertices.size() > 0) {
             currentVertex = unvisitedVertices.remove(0);
             visitedVertices.add(currentVertex);
@@ -163,10 +163,10 @@ public class Graph {
     private static class PriorityItem implements Comparable<PriorityItem> {
 
         int distance;
-        private VertexData vertex;
+        private Vertex vertex;
         PriorityItem previousItem;
 
-        PriorityItem(int distance, VertexData vertex) {
+        PriorityItem(int distance, Vertex vertex) {
             this.distance = distance;
             this.vertex = vertex;
             previousItem = null;

@@ -17,8 +17,8 @@ import com.edenrump.toolkit.graph.DepthDirection;
 import com.edenrump.toolkit.graph.Graph;
 import com.edenrump.toolkit.loaders.JSONLoader;
 import com.edenrump.toolkit.models.ThreadsData;
-import com.edenrump.toolkit.models.VertexData;
-import com.edenrump.toolkit.ui.DepthGraphDisplay;
+import com.edenrump.toolkit.models.Vertex;
+import com.edenrump.toolkit.ui.display.DepthGraphDisplay;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -93,7 +93,7 @@ public class MainWindowController implements Initializable {
     /**
      * The vertex data currently associated with the display
      */
-    private List<VertexData> vertexInfoInMemory = new ArrayList<>();
+    private List<Vertex> vertexInfoInMemory = new ArrayList<>();
 
     /**
      * Initialise the application window
@@ -111,11 +111,11 @@ public class MainWindowController implements Initializable {
         });
         createNew();
 
-        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVertices();
+        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVertexIds();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             c.next();
-            setInfoPaneComments(c.getList().stream().map(id -> depthGraphDisplay.getVertex(id).get()).collect(Collectors.toList()));
+            setInfoPaneComments(c.getList().stream().map(id -> depthGraphDisplay.getReadOnlyVertex(id).get()).collect(Collectors.toList()));
         });
 
         IntegerProperty priority = new SimpleIntegerProperty(192000);
@@ -142,7 +142,7 @@ public class MainWindowController implements Initializable {
                 depthGraphDisplay.selectAll();
             } else if (key.getCode() == KeyCode.ENTER && key.isControlDown()) {
                 priority.set(priority.get() + 32000);
-                depthGraphDisplay.addVertexToDisplay(new VertexData("Module", 0, priority.get()));
+                depthGraphDisplay.addVertexToDisplay(new Vertex("Module", 0, priority.get()));
             }
         }));
     }
@@ -232,25 +232,25 @@ public class MainWindowController implements Initializable {
     }
 
     private void clearCurrentVisibilityFilters() {
-        for (Predicate<? super DataAndNodes> filter : visibilityFilters) {
+        for (Predicate<Vertex> filter : visibilityFilters) {
             depthGraphDisplay.removeVisibilityFilter(filter);
         }
         visibilityFilters.clear();
     }
 
-    private List<Predicate<? super DataAndNodes>> visibilityFilters = new ArrayList<>();
+    private List<Predicate<Vertex>> visibilityFilters = new ArrayList<>();
 
     private MenuItem colorFilterMenuItem(String cName, String cValue) {
         MenuItem m = new MenuItem(cName);
 
-        Predicate<DataAndNodes> filter = data -> {
-            if (!data.getVertexData().hasProperty("color")) return false;
-            List<VertexData> downstream = Graph.unidirectionalFill(data.getVertexData().getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllVertexData());
-            for (VertexData vertex : downstream) {
+        Predicate<Vertex> filter = data -> {
+            if (!data.hasProperty("color")) return false;
+            List<Vertex> downstream = Graph.unidirectionalFill(data.getId(), DepthDirection.INCREASING_DEPTH, depthGraphDisplay.getAllVertexData());
+            for (Vertex vertex : downstream) {
                 if (!vertex.hasProperty("color")) continue;
                 if (sameColor(vertex.getProperty("color"), cValue)) return true;
             }
-            return sameColor(data.getVertexData().getProperty("color"), cValue);
+            return sameColor(data.getProperty("color"), cValue);
         };
 
         m.setOnAction(e -> {
@@ -434,10 +434,10 @@ public class MainWindowController implements Initializable {
      *
      * @param data the data to be added
      */
-    private void setInfoPaneComments(List<VertexData> data) {
+    private void setInfoPaneComments(List<Vertex> data) {
         commentPane.getChildren().clear();
         if (data.size() == 0) return;
-        for (VertexData vertex : data) {
+        for (Vertex vertex : data) {
             GridPane holder = new GridPane();
             holder.setPadding(new Insets(10));
             holder.setVgap(5);
@@ -527,7 +527,7 @@ public class MainWindowController implements Initializable {
     }
 
     private void updateVertex(Pane holder, TextField titleEdit, TextField hyperlinkEdit,
-                              Label titleValue, Label hyperlinkValue, VertexData vertex) {
+                              Label titleValue, Label hyperlinkValue, Vertex vertex) {
         holder.getChildren().removeAll(titleEdit, hyperlinkEdit);
         holder.getChildren().addAll(titleValue, hyperlinkValue);
 

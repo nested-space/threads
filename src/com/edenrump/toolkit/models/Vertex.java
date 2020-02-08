@@ -18,7 +18,7 @@ import java.util.*;
  * Class representing a basic information node, which can have upstream and downstream links
  * and has an id and a string name
  */
-public class VertexData implements Comparable<VertexData> {
+public class Vertex implements Comparable<Vertex> {
 
     /**
      * List of upstream node ids
@@ -50,7 +50,7 @@ public class VertexData implements Comparable<VertexData> {
      *
      * @param name the name of the vertex
      */
-    public VertexData(String name) {
+    public Vertex(String name) {
         this(name, UUID.randomUUID().toString());
     }
 
@@ -61,7 +61,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param depth    the depth of the vertex
      * @param priority the priority of the vertex
      */
-    public VertexData(String name, int depth, int priority) {
+    public Vertex(String name, int depth, int priority) {
         this(name, UUID.randomUUID().toString(), new ArrayList<>(), depth, priority);
     }
 
@@ -71,7 +71,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param name the name of the vertex
      * @param id   the id of the vertex
      */
-    public VertexData(String name, String id) {
+    public Vertex(String name, String id) {
         this(name, id, new ArrayList<>(), 0, 0);
     }
 
@@ -82,7 +82,7 @@ public class VertexData implements Comparable<VertexData> {
      * @param id        the id of the vertex
      * @param connected a list of connected vertices by id
      */
-    public VertexData(String name, String id, List<String> connected, int depth, int priority) {
+    public Vertex(String name, String id, List<String> connected, int depth, int priority) {
         this.name = name;
         this.id = new ReadOnlyStringWrapper(id);
         this.connectedVertices = new ArrayList<>(connected);
@@ -90,7 +90,7 @@ public class VertexData implements Comparable<VertexData> {
         this.priority = priority;
     }
 
-    public ReadOnlyObjectWrapper<VertexData> readOnly() {
+    public ReadOnlyObjectWrapper<Vertex> readOnly() {
         return new ReadOnlyObjectWrapper<>(this);
     }
 
@@ -176,7 +176,7 @@ public class VertexData implements Comparable<VertexData> {
     }
 
     @Override
-    public int compareTo(VertexData o) {
+    public int compareTo(Vertex o) {
         return o.getId().equals(this.getId()) ? 1 : 0;
     }
 
@@ -185,7 +185,7 @@ public class VertexData implements Comparable<VertexData> {
      *
      * @param vertex the vertex whose properties are to be copied
      */
-    public void update(VertexData vertex) {
+    public void update(Vertex vertex) {
         this.name = vertex.getName();
         this.connectedVertices = new ArrayList<>(vertex.getConnectedVertices());
         this.depth = vertex.getDepth();
