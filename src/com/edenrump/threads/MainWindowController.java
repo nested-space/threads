@@ -12,7 +12,6 @@ package com.edenrump.threads;
 import com.edenrump.threads.output.PDFExporter;
 import com.edenrump.threads.views.TreeDepthGraphDisplay;
 import com.edenrump.toolkit.config.Defaults;
-import com.edenrump.toolkit.graph.DataAndNodes;
 import com.edenrump.toolkit.graph.DepthDirection;
 import com.edenrump.toolkit.graph.Graph;
 import com.edenrump.toolkit.loaders.JSONLoader;
@@ -111,7 +110,7 @@ public class MainWindowController implements Initializable {
         });
         createNew();
 
-        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVertexIds();
+        ObservableList<String> selectedVertices = depthGraphDisplay.getSelectedVertexIdsObservable();
         selectedVertices.addListener((ListChangeListener<String>) c -> {
             setInfoPaneTitle(vertexInfoInMemory.size(), c.getList().size());
             c.next();

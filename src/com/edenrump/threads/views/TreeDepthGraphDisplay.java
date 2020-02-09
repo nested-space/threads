@@ -92,8 +92,8 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
                     .map(Vertex::getId).collect(Collectors.toList()).contains(vertex.getId()) || vertex.getDepth() == 0;
             addVisibilityFilter(selectorFilter);
 
-            clearSelectedVertices();
-            addSelectedVertex(vertexId);
+            vertexSelection.clearSelectedVertices();
+            vertexSelection.addSelectedVertex(vertexId);
 
             updateDisplay();
             event.consume();
@@ -155,7 +155,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         delete.setOnAction(event -> deleteVertexAndUpdateDisplay(id));
         MenuItem deleteAll = new MenuItem("Delete all");
         delete.setOnAction(event -> {
-            for (String vertex : getSelectedVertexIds()) {
+            for (String vertex : vertexSelection.getSelectedVertexIdsObservable()) {
                 deleteVertexAndUpdateDisplay(vertex);
             }
         });
@@ -193,7 +193,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
     }
 
     private void changeSelectedItemColors(String color) {
-        ObservableList<String> vertices = getSelectedVertexIds();
+        ObservableList<String> vertices = vertexSelection.getSelectedVertexIdsObservable();
         for (String id : vertices) {
             Vertex v = getAllNodesIDMap().get(id).getVertex();
             v.overwriteProperty("color", color);
