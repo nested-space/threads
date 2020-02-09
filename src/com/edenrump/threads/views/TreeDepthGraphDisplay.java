@@ -147,7 +147,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      * @return the context menu
      */
     @Override
-    public ContextMenu multipleSelectionContextMenu(String id) {
+    public ContextMenu defaultNodeContextMenu(String id) {
         final MenuItem title = new MenuItem("Node Options");
 
         Menu delMenu = new Menu("Delete");
@@ -210,7 +210,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     @Override
     public ContextMenu singleSelectedVertexContextMenu(String id) {
-        ContextMenu menu = multipleSelectionContextMenu(id);
+        ContextMenu menu = defaultNodeContextMenu(id);
         MenuItem addMoreDepth = new MenuItem("Add Node Right ->");
         addMoreDepth.setOnAction(event -> {
             int depth = getAllNodesIDMap().get(id).getVertex().getDepth() + 1;

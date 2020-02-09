@@ -91,7 +91,10 @@ public class DepthGraphDisplay {
     /**
      * A map of IDs to preparation and display nodes for all nodes in memory
      */
-    private Map<String, DataAndNodes> allNodesIDMap = new HashMap<>();
+    private Map<String, Vertex> verticesById = new HashMap<>();
+    private Map<String, TitledContentPane> displayNodesById = new HashMap<>();
+    private Map<String, TitledContentPane> preparationNodesById = new HashMap<>();
+
     private Set<String> currentlyVisibleVerticesById = new HashSet<>();
     /**
      * A list of nodes that are being prepared for removal from the display pane on the next pass
@@ -181,7 +184,7 @@ public class DepthGraphDisplay {
      */
     public void clearDisplay() {
         clearNodes();
-        removeVertexWithoutRefreshingDisplay();
+        removeAllVertices();
     }
 
 
@@ -574,32 +577,19 @@ public class DepthGraphDisplay {
      * Select all nodes
      */
     public void selectAll() {
-        selectedVertexIds.setAll(allNodesIDMap.keySet());
+        selectedVertexIds.setAll(verticesById.keySet());
         highlightSelectedNodes();
         lowlightUnselectedNodes();
     }
 
-    /**
-     * Create a DataAndNodes construct linking vertex data with nodes in the scene graph
-     * for a given VD and depth
-     *
-     * @param data the vertex data
-     * @return a construct linking vertex graph depth, preparationNode, displayNode and underlying VertexData
-     */
     private DataAndNodes generateNodes_LinkToData(Vertex data) {
-        //Create node for preparation area of display
-        TitledContentPane prepNode = convertDataToNode(data);
-        if (data.hasProperty("url")) prepNode.addTag("url", data.getProperty("url"));
+        TitledContentPane prepNode = createTitledContentPaneFromVertex(data);
+        TitledContentPane displayNode = createTitledContentPaneFromVertex(data);
 
-        //Create node for display overlay
-        TitledContentPane displayNode = convertDataToNode(data);
-        if (data.hasProperty("url")) displayNode.addTag("url", data.getProperty("url"));
-
-        displayNode.setLayoutX(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinX());
-        displayNode.setLayoutY(prepNode.localToScene(prepNode.getBoundsInLocal()).getMinY());
-        displayNode.setId(data.getId());
+        displayNode.setLayoutX(ltsX(prepNode));
+        displayNode.setLayoutY(ltsY(prepNode));
         displayNode.setOnContextMenuRequested(event -> {
-            showContextMenu(displayNode, multipleSelectionContextMenu(data.getId()), event);
+            showContextMenu(displayNode, defaultNodeContextMenu(data.getId()), event);
             event.consume();
         });
         displayNode.setOnMouseClicked(event -> handleSelection(data.getId(), event));
@@ -607,44 +597,13 @@ public class DepthGraphDisplay {
         return new DataAndNodes(data, prepNode, displayNode);
     }
 
-    /**
-     * Clear the current display and return it to an unloaded state
-     */
     private void clearNodes() {
         preparationContainer.getChildren().clear();
         displayOverlay.getChildren().clear();
     }
 
-    /**
-     * Utility method to clear the preparation container of all children and re-load from the depthToPrepContainerMap
-     */
-    private void layoutPreparationDisplay(Set<String> vertexMap) {
-        preparationContainer.getChildren().clear();
-        depthPrepDisplayLabelMap.clear();
-
-        vertexMap.stream()
-                .map(id -> getVertexById(id).getDepth())
-                .distinct()
-                .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
-                .collect(Collectors.toList())
-                .forEach(depth -> {
-                    List<String> prepNodes = new ArrayList<>();
-                    vertexMap.stream()
-                            .filter(id -> getVertexById(id).getDepth() == depth)
-                            .forEach(prepNodes::add);
-                    preparationContainer.getChildren().add(createPrepColumn(prepNodes, depth));
-                });
-    }
-
     private boolean preventDefaultHighlight = false;
 
-    /**
-     * Select the vertex identified. Apply UX logic to determine whether to keep the current selection, remove it,
-     * or expand it.
-     *
-     * @param vertexId the vertex selected
-     * @param event    the mouse-event that triggered the selection
-     */
     private void handleSelection(String vertexId, MouseEvent event) {
         if (event.getButton() == MouseButton.SECONDARY && selectedVertexIds.contains(vertexId)) {
             event.consume();
@@ -706,12 +665,12 @@ public class DepthGraphDisplay {
                     if (selectedVertexIds.size() == 1) {
                         pane.setOnContextMenuRequested(e -> showContextMenu(pane, singleSelectedVertexContextMenu(pane.getId()), e));
                     } else {
-                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, multipleSelectionContextMenu(pane.getId()), e));
+                        pane.setOnContextMenuRequested(e -> showContextMenu(pane, defaultNodeContextMenu(pane.getId()), e));
                     }
                 });
 
         if (lastSelectedVertexId != null) {
-            TitledContentPane last = getDisplayNodeById(lastSelectedVertexId);
+            TitledContentPane last =  getDisplayNodeById(lastSelectedVertexId);
             last.highlightTwo();
         }
     }
@@ -727,40 +686,16 @@ public class DepthGraphDisplay {
         }
     }
 
-    /**
-     * Utility method to unhighlight all nodes in the idToNodeMap
-     */
-    private void resetHighlightingOnAllNodes() {
-        for (String id: getAllVertexIds()) {
-            TitledContentPane displayNode = getDisplayNodeById(id);
-            displayNode.resetHighlighting();
-        }
-    }
-
-    /**
-     * Utility method. Ensure vertex data is consistently translated into a dispay object
-     *
-     * @param v the vertex to display
-     * @return a consistent node to display on the scene graph
-     */
-    private TitledContentPane convertDataToNode(Vertex v) {
+    private TitledContentPane createTitledContentPaneFromVertex(Vertex vertex) {
         TitledContentPane node = new TitledContentPane();
-        node.addHeaderBox(v.getName(), v.getId(), Color.web("#D1DBE3"));
+        node.setId(vertex.getId());
+        node.addHeaderBox(vertex.getName(), vertex.getId(), Color.web("#D1DBE3"));
+        if (vertex.hasProperty("url")) node.addTag("url", vertex.getProperty("url"));
         return node;
     }
 
-    /**
-     * The current context menu. Prevents multiple context menus being shown simultaneously.
-     */
     private ContextMenu currentlyShown = new ContextMenu();
 
-    /**
-     * Close the currently shown context method and show the context menu provided
-     *
-     * @param pane the pane generating the context menu
-     * @param c    the context menu to be shown
-     * @param e    the event generating the context menu
-     */
     private void showContextMenu(Pane pane, ContextMenu c, ContextMenuEvent e) {
         currentlyShown.hide();
         currentlyShown = c;
@@ -768,25 +703,97 @@ public class DepthGraphDisplay {
 
     }
 
-    /**
-     * Simplest context menu associated with a vertex
-     *
-     * @param id the id of the vertex
-     * @return the context menu
-     */
-    public ContextMenu multipleSelectionContextMenu(String id) {
+    public ContextMenu defaultNodeContextMenu(String id) {
         return new ContextMenu();
     }
+
+    public ContextMenu singleSelectedVertexContextMenu(String id) {
+        return new ContextMenu();
+    }
+
+    private void updateNode(TitledContentPane node, Vertex v) {
+        node.setTitle(v.getName());
+        if (v.hasProperty("url")) {
+            if (!node.hasTag("url")) {
+                node.addTag("url", v.getProperty("url"));
+            } else {
+                node.updateTag("url", v.getProperty("url"));
+            }
+        } else {
+            if (node.hasTag("url")) node.removeTag("url");
+        }
+    }
+
+    private Double ltsX(Node node) {
+        return node.localToScene(node.getBoundsInLocal()).getMinX() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinX();
+    }
+
+    private Double ltsY(Node node) {
+        return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
+    }
+
+    /**
+     * Class representing two bound labels in the scene graph between the preparation and the display
+     */
+    private static class Labels {
+        Label prepLabel;
+        Label displayLabel;
+
+        Labels(Label prepLabel, Label displayLabel) {
+            this.prepLabel = prepLabel;
+            this.displayLabel = displayLabel;
+        }
+    }
+
+    /**
+     * Class representing the status of nodes in a display with respect to whether they should be visible or not.
+     */
+    private static class NodeStatus {
+        Set<String> shouldBeVisible = new HashSet<>();
+        Set<String> verticesToAppear = new HashSet<>();
+        Set<String> verticesToDisappear = new HashSet<>();
+        Set<Shape> edgesToDisappear = new HashSet<>();
+        Set<Shape> edgesToAdd = new HashSet<>();
+    }
+
+    /* ***************************************************************************************************************
+     *
+     *
+     *                                                  GRAPH METHODS
+     *
+     *
+     ***************************************************************************************************************** */
+
+    private Set<String> getAllVertexIds() {
+        return verticesById.keySet();
+    }
+
+    private Vertex getVertexById(String id) {
+        return verticesById.get(id);
+    }
+
+    public ReadOnlyObjectWrapper<Vertex> getReadOnlyVertex(String id) {
+        return verticesById.get(id).readOnly();
+    }
+
+    public List<Vertex> getAllVertexData() {
+        return new ArrayList<>(verticesById.values());
+    }
+
+    private void removeVertex(String vertexId) {
+        verticesById.remove(vertexId);
+        for (String otherId : getAllVertexIds()) {
+            getVertexById(otherId).getConnectedVertices().remove(vertexId);
+        }
+    }
+
+
 
     public int calculatePriority(int depth, VerticalDirection topOrBottom) {
         int rowPriorityIncrement = 32000;
 
-        int maxPriority = Integer.MIN_VALUE;
-        int minPriority = Integer.MAX_VALUE;
-        for (String id : getAllVerticesAtDepth(depth)) {
-            minPriority = Math.min(minPriority, getVertexById(id).getDepth());
-            maxPriority = Math.min(maxPriority, getVertexById(id).getDepth());
-        }
+        int maxPriority = calculateMaximumPriorityOfColumn(depth);
+        int minPriority = calculateMinimumPriorityOfColumn(depth);
 
         if (maxPriority == Integer.MIN_VALUE) return 0;
         return topOrBottom == VerticalDirection.DOWN ?
@@ -794,23 +801,100 @@ public class DepthGraphDisplay {
                 minPriority - rowPriorityIncrement;
     }
 
-
-    /**
-     * Create a context menu associated with a vertex where only a single vertex has been selected
-     *
-     * @param id the id of the vertex
-     * @return the context menu
-     */
-    public ContextMenu singleSelectedVertexContextMenu(String id) {
-        return new ContextMenu();
+    private int calculateMaximumPriorityOfColumn(int depth){
+        int maxPriority = Integer.MIN_VALUE;
+        for (String id : getAllVerticesAtDepth(depth)) {
+            maxPriority = Math.min(maxPriority, getVertexById(id).getDepth());
+        }
+        return maxPriority;
     }
 
-    /**
-     * Create a node (line) which links two vertices in the display. Return the node.
+    private int calculateMinimumPriorityOfColumn(int depth){
+        int minPriority = Integer.MAX_VALUE;
+        for (String id : getAllVerticesAtDepth(depth)) {
+            minPriority = Math.min(minPriority, getVertexById(id).getDepth());
+        }
+        return minPriority;
+    }
+
+    private List<String> geAllVerticesSortedByPriority() {
+        List<String> vertices = new ArrayList<>(getAllVertexIds());
+        vertices.sort(Comparator.comparingInt(o -> getVertexById(o).getPriority()));
+        return vertices;
+    }
+
+    private Set<String> getAllVerticesAtDepth(int depth) {
+        Set<String> verticesAtDepth = new HashSet<>();
+        for (String id : getAllVertexIds()) {
+            if (getVertexById(id).getDepth() == depth) verticesAtDepth.add(id);
+        }
+        return verticesAtDepth;
+    }
+
+    /* ***************************************************************************************************************
      *
-     * @param vertex1 the first vertex
-     * @param vertex2 the second vertex
-     */
+     *
+     *                                          PREPARATION CONTAINER METHODS
+     *
+     *
+     ***************************************************************************************************************** */
+
+    private void removeAllPreparationNodes() {
+        preparationNodesById.clear();
+    }
+
+    private TitledContentPane getPreparationNodeById(String id) {
+        return preparationNodesById.get(id);
+    }
+
+    private void layoutPreparationDisplay(Set<String> vertexMap) {
+        preparationContainer.getChildren().clear();
+        depthPrepDisplayLabelMap.clear();
+
+        vertexMap.stream()
+                .map(id -> getVertexById(id).getDepth())
+                .distinct()
+                .sorted(plottingDirection == HorizontalDirection.LEFT ? Comparator.reverseOrder() : Comparator.naturalOrder())
+                .collect(Collectors.toList())
+                .forEach(depth -> {
+                    List<String> prepNodes = new ArrayList<>();
+                    vertexMap.stream()
+                            .filter(id -> getVertexById(id).getDepth() == depth)
+                            .forEach(prepNodes::add);
+                    preparationContainer.getChildren().add(createPrepColumn(prepNodes, depth));
+                });
+    }
+
+    public VBox createPrepColumn(List<String> nodeIds, Integer title) {
+        VBox body = new VBox();
+        body.setSpacing(35);
+        body.setAlignment(Pos.TOP_CENTER);
+
+        for (String id : geAllVerticesSortedByPriority()) {
+            if (nodeIds.contains(id)) {
+                body.getChildren().add(getPreparationNodeById(id));
+            }
+        }
+
+        return body;
+    }
+
+    /* ***************************************************************************************************************
+     *
+     *
+     *                                                  DISPLAY METHODS
+     *
+     *
+     ***************************************************************************************************************** */
+
+
+    private void resetHighlightingOnAllNodes() {
+        for (String id: getAllVertexIds()) {
+            TitledContentPane displayNode = getDisplayNodeById(id);
+            displayNode.resetHighlighting();
+        }
+    }
+
     private Shape createEdge(String vertex1, String vertex2) {
         boolean v2_deeper_v1 = getVertexById(vertex2).getDepth() > getVertexById(vertex1).getDepth();
 
@@ -846,62 +930,36 @@ public class DepthGraphDisplay {
         return edge;
     }
 
-    /**
-     * Utility method. Maintain the vertexToEdgesMap to maintain links between edges in the display
-     * and the vertices they're linked to
-     *
-     * @param vertex the vertex to which the edge should be bound
-     * @param edge   the edge
-     */
+    private TitledContentPane getDisplayNodeById(String vertexId) {
+        return displayNodesById.get(vertexId);
+    }
+
+
+    public Collection<TitledContentPane> getAllDisplayNodes() {
+        return displayNodesById.values();
+    }
+
+    private void removeAllDisplayNodes() {
+        displayNodesById.clear();
+    }
+
+
+    private void addDisplayNode(String vertexId, TitledContentPane node) {
+        displayNodesById.put(vertexId, node);
+    }
+
+    private TitledContentPane getDisplayNodeByIdNew(String vertexId) {
+        return displayNodesById.get(vertexId);
+    }
+
     private void linkVertexToEdge(String vertex, Shape edge) {
         vertexIdToEdgesMap.computeIfAbsent(vertex, k -> new HashSet<>());
         vertexIdToEdgesMap.get(vertex).add(edge);
     }
 
-    /**
-     * Update the node n with vertex information v. This method does not check whether the node and vertex
-     * are correctly linked (i.e. using the idNodeMap). Callers should check that the correct node has been selected
-     *
-     * @param n the node to update
-     * @param v the vertex containing the information to place inside the node.
-     */
-    private void updateNode(TitledContentPane n, Vertex v) {
-        TitledContentPane tcp = (TitledContentPane) n;
-        tcp.setTitle(v.getName());
-        if (v.hasProperty("url")) {
-            if (!tcp.hasTag("url")) {
-                tcp.addTag("url", v.getProperty("url"));
-            } else {
-                tcp.updateTag("url", v.getProperty("url"));
-            }
-        } else {
-            if (tcp.hasTag("url")) tcp.removeTag("url");
-        }
-    }
 
-    /**
-     * Utility method to create a consistent column in the preparation display
-     *
-     * @param nodeIds the nodes to be added to the column
-     * @param title   the title of the column
-     * @return a consistently-styled VBox for use in the preparation display.
-     */
-    public VBox createPrepColumn(List<String> nodeIds, Integer title) {
-        VBox body = new VBox();
-        body.setSpacing(35);
-        body.setAlignment(Pos.TOP_CENTER);
-
-        for (String id : geAllVerticesSortedByPriority()) {
-            if (nodeIds.contains(id)) {
-                body.getChildren().add(getPreparationNodeById(id));
-            }
-        }
-
-        return body;
-    }
-
-    public Map<String, DataAndNodes> getAllNodesIDMap() {
-        return new HashMap<>(allNodesIDMap);
+    public WritableImage getSnapShot() {
+        return displayOverlay.snapshot(new SnapshotParameters(), null);
     }
 
     public void clearVisibilityFilters() {
@@ -924,113 +982,44 @@ public class DepthGraphDisplay {
         selectedVertexIds.add(id);
     }
 
-    /**
-     * Return the Bounds of the node in the scene. Utility method to help concise code.
-     *
-     * @param node the node in the scene
-     * @return the bounds in scene
-     */
-    private Double ltsX(Node node) {
-        return node.localToScene(node.getBoundsInLocal()).getMinX() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinX();
-    }
+    /* ***************************************************************************************************************
+    *
+    *
+    *                                                  MAP METHODS
+    *
+    *
+    ***************************************************************************************************************** */
 
-    /**
-     * Return relevant bounds in the current container that are the same in-scene bounds as a node in a different container
-     * Utility method to help concise code.
-     *
-     * @return the bounds in the current container that replicate in-scene the bounds of the prep node
-     */
-    private Double ltsY(Node node) {
-        return node.localToScene(node.getBoundsInLocal()).getMinY() - displayOverlay.localToScene(displayOverlay.getBoundsInLocal()).getMinY();
-    }
 
-    public WritableImage getSnapShot() {
-        return displayOverlay.snapshot(new SnapshotParameters(), null);
-    }
-
-    /**
-     * Class representing two bound labels in the scene graph between the preparation and the display
-     */
-    private static class Labels {
-        Label prepLabel;
-        Label displayLabel;
-
-        Labels(Label prepLabel, Label displayLabel) {
-            this.prepLabel = prepLabel;
-            this.displayLabel = displayLabel;
+    public Map<String, DataAndNodes> getAllNodesIDMap() {
+        Map<String, DataAndNodes> temp = new HashMap<>();
+        for(String id: verticesById.keySet()){
+            temp.put(id, new DataAndNodes(verticesById.get(id), preparationNodesById.get(id), displayNodesById.get(id)));
         }
+        return temp;
     }
 
-    /**
-     * Class representing the status of nodes in a display with respect to whether they should be visible or not.
-     */
-    private static class NodeStatus {
-        Set<String> shouldBeVisible = new HashSet<>();
-        Set<String> verticesToAppear = new HashSet<>();
-        Set<String> verticesToDisappear = new HashSet<>();
-        Set<Shape> edgesToDisappear = new HashSet<>();
-        Set<Shape> edgesToAdd = new HashSet<>();
-
-        NodeStatus() {
-        }
-
-        NodeStatus(Set<String> current) {
-            shouldBeVisible = new HashSet<>(current);
-        }
-    }
-
-    private void removeVertexWithoutRefreshingDisplay() {
-        allNodesIDMap.clear();
+    private void removeAllVertices() {
+        removeAllPreparationNodes();
+        verticesById.clear();
+        removeAllDisplayNodes();
     }
 
 
     private void addNodeWithoutRefreshingDisplay(String nodeId, DataAndNodes nodes) {
-        allNodesIDMap.put(nodeId, nodes);
+        preparationNodesById.put(nodeId, (TitledContentPane) nodes.getPreparationNode());
+        verticesById.put(nodeId, nodes.getVertex());
+        displayNodesById.put(nodeId, (TitledContentPane) nodes.getDisplayNode());
     }
 
     private void removeNodeWithoutRefreshingDisplay(String id) {
-        allNodesIDMap.remove(id);
-        for (String otherId : getAllVertexIds()) {
-            getVertexById(otherId).getConnectedVertices().remove(id);
-        }
+        removePreparationNode(id);
+        removeVertex(id);
     }
 
-    private TitledContentPane getDisplayNodeById(String nodeId) {
-        return (TitledContentPane) allNodesIDMap.get(nodeId).getDisplayNode();
-    }
 
-    private TitledContentPane getPreparationNodeById(String id) {
-        return (TitledContentPane) allNodesIDMap.get(id).getPreparationNode();
-    }
-
-    private Set<String> getAllVertexIds() {
-        return allNodesIDMap.keySet();
-    }
-
-    private Vertex getVertexById(String id) {
-        return allNodesIDMap.get(id).getVertex();
-    }
-
-    private List<String> geAllVerticesSortedByPriority() {
-        List<String> vertices = new ArrayList<>(getAllVertexIds());
-        vertices.sort(Comparator.comparingInt(o -> getVertexById(o).getPriority()));
-        return vertices;
-    }
-
-    private Set<String> getAllVerticesAtDepth(int depth) {
-        Set<String> verticesAtDepth = new HashSet<>();
-        for (String id : getAllVertexIds()) {
-            if (getVertexById(id).getDepth() == depth) verticesAtDepth.add(id);
-        }
-        return verticesAtDepth;
-    }
-
-    public ReadOnlyObjectWrapper<Vertex> getReadOnlyVertex(String id) {
-        return allNodesIDMap.get(id).getVertex().readOnly();
-    }
-
-    public List<Vertex> getAllVertexData() {
-        return allNodesIDMap.values().stream().map(DataAndNodes::getVertex).collect(Collectors.toList());
+    private void removePreparationNode(String vertexId) {
+        preparationNodesById.remove(vertexId);
     }
 
 }
