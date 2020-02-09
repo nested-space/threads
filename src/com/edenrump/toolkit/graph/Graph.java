@@ -10,6 +10,8 @@
 package com.edenrump.toolkit.graph;
 
 import com.edenrump.toolkit.models.Vertex;
+import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.geometry.VerticalDirection;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,6 +23,80 @@ import java.util.stream.Collectors;
  * retrieving
  */
 public class Graph {
+
+    Map<String, Vertex> verticesById = new HashMap<>();
+
+
+    public void addVertex(Vertex vertex) {
+        verticesById.put(vertex.getId(), vertex);
+    }
+
+    public void removeVertex(String vertexId) {
+        verticesById.remove(vertexId);
+        for (String otherId : getAllVertexIds()) {
+            getVertexById(otherId).getConnectedVertices().remove(vertexId);
+        }
+    }
+
+    public Set<String> getAllVertexIds() {
+        return verticesById.keySet();
+    }
+
+    public Vertex getVertexById(String id) {
+        return verticesById.get(id);
+    }
+
+    public ReadOnlyObjectWrapper<Vertex> getReadOnlyVertex(String id) {
+        return verticesById.get(id).readOnly();
+    }
+
+    public List<Vertex> getAllVertexData() {
+        return new ArrayList<>(verticesById.values());
+    }
+
+    public int calculatePriority(int depth, VerticalDirection topOrBottom) {
+        int rowPriorityIncrement = 32000;
+
+        int maxPriority = calculateMaximumPriorityOfColumn(depth);
+        int minPriority = calculateMinimumPriorityOfColumn(depth);
+
+        if (maxPriority == Integer.MIN_VALUE) return 0;
+        return topOrBottom == VerticalDirection.DOWN ?
+                maxPriority + rowPriorityIncrement :
+                minPriority - rowPriorityIncrement;
+    }
+
+    private int calculateMaximumPriorityOfColumn(int depth) {
+        if(getAllVerticesAtDepth(depth).size()==0) return 0;
+        int maxPriority = Integer.MIN_VALUE;
+        for (String id : getAllVerticesAtDepth(depth)) {
+            maxPriority = Math.min(maxPriority, getVertexById(id).getDepth());
+        }
+        return maxPriority;
+    }
+
+    private int calculateMinimumPriorityOfColumn(int depth) {
+        if(getAllVerticesAtDepth(depth).size()==0) return 0;
+        int minPriority = Integer.MAX_VALUE;
+        for (String id : getAllVerticesAtDepth(depth)) {
+            minPriority = Math.min(minPriority, getVertexById(id).getDepth());
+        }
+        return minPriority;
+    }
+
+    public List<String> geAllVerticesSortedByPriority() {
+        List<String> vertices = new ArrayList<>(getAllVertexIds());
+        vertices.sort(Comparator.comparingInt(o -> getVertexById(o).getPriority()));
+        return vertices;
+    }
+
+    private Set<String> getAllVerticesAtDepth(int depth) {
+        Set<String> verticesAtDepth = new HashSet<>();
+        for (String id : getAllVertexIds()) {
+            if (getVertexById(id).getDepth() == depth) verticesAtDepth.add(id);
+        }
+        return verticesAtDepth;
+    }
 
 
 
@@ -155,6 +231,10 @@ public class Graph {
         }
 
         return visitedVertices;
+    }
+
+    public void clearAll() {
+        verticesById.clear();
     }
 
     /**

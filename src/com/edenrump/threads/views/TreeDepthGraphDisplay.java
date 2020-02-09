@@ -16,15 +16,10 @@ import com.edenrump.toolkit.models.Vertex;
 import com.edenrump.toolkit.ui.display.DepthGraphDisplay;
 import javafx.collections.ObservableList;
 import javafx.geometry.HorizontalDirection;
-import javafx.geometry.Pos;
 import javafx.geometry.VerticalDirection;
 import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.VBox;
-
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -71,16 +66,6 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
      */
     Predicate<Vertex> selectorFilter;
 
-    /**
-     * Determine whether the secondary button has launched the event. If so, return.
-     * <p>
-     * Determine whether a root node has been clicked. If so, reload the display with the correct branches and leaves
-     * <p>
-     * If a branch or leaf has been selected, apply normal selection rules
-     *
-     * @param vertexId the vertex selected
-     * @param event    the mouse-event that triggered the selection
-     */
     @Override
     public void addMouseActions(String vertexId, MouseEvent event) {
         if (getAllNodesIDMap().get(vertexId).getVertex().getDepth() == 0) {
@@ -100,52 +85,6 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
         }
     }
 
-    /**
-     * Utility method to create a consistent column in the preparation display
-     *
-     * @param nodeIds the nodes to be added to the column
-     * @param title   the title of the column
-     * @return a consistently-styled VBox for use in the preparation display.
-     */
-    @Override
-    public VBox createPrepColumn(List<String> nodeIds, Integer title) {
-        VBox body = new VBox();
-        body.setSpacing(35);
-        body.setAlignment(Pos.TOP_CENTER);
-
-        boolean notRootColumn = getAllNodesIDMap().get(nodeIds.get(0)).getVertex().getDepth() != 0;
-
-        if (selectedRootNode != null && notRootColumn) {
-            List<DataAndNodes> rootNodes = getAllNodesIDMap().values().stream()
-                    .filter(data -> data.getVertex().getDepth() == 0)
-                    .sorted(Comparator.comparingInt(o -> o.getVertex().getPriority()))
-                    .collect(Collectors.toList());
-            int index = rootNodes.indexOf(selectedRootNode);
-            if (index > (0.65 * rootNodes.size())) {
-                body.setAlignment(Pos.BOTTOM_CENTER);
-            } else if (index < 0.35 * rootNodes.size()) {
-                body.setAlignment(Pos.TOP_CENTER);
-            } else {
-                body.setAlignment(Pos.CENTER);
-            }
-        }
-
-        Comparator<Vertex> sortPriority = Comparator.comparingDouble(Vertex::getPriority);
-        getAllNodesIDMap().keySet().stream()
-                .filter(nodeIds::contains)
-                .map(id -> getAllNodesIDMap().get(id).getVertex())
-                .sorted(sortPriority)
-                .forEachOrdered(data -> body.getChildren().add(getAllNodesIDMap().get(data.getId()).getPreparationNode()));
-
-        return body;
-    }
-
-    /**
-     * Simplest context menu associated with a vertex
-     *
-     * @param id the id of the vertex
-     * @return the context menu
-     */
     @Override
     public ContextMenu defaultNodeContextMenu(String id) {
         final MenuItem title = new MenuItem("Node Options");
@@ -202,12 +141,6 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
 
     }
 
-    /**
-     * Create a context menu associated with a vertex where only a single vertex has been selected
-     *
-     * @param id the id of the vertex
-     * @return the context menu
-     */
     @Override
     public ContextMenu singleSelectedVertexContextMenu(String id) {
         ContextMenu menu = defaultNodeContextMenu(id);
@@ -216,7 +149,7 @@ public class TreeDepthGraphDisplay extends DepthGraphDisplay {
             int depth = getAllNodesIDMap().get(id).getVertex().getDepth() + 1;
             addVertexToDisplay(new Vertex("New Node", UUID.randomUUID().toString(), Collections.singletonList(id),
                     depth,
-                    calculatePriority(depth, VerticalDirection.DOWN)));
+                    graph.calculatePriority(depth, VerticalDirection.DOWN)));
         });
         Menu add = new Menu("Add");
         add.getItems().add(addMoreDepth);
